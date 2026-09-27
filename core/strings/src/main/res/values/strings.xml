@@ -409,4 +409,20 @@
     <string name="webdav_cache_prefetch_5">5 chapters</string>
     <string name="webdav_cache_prefetch_off">Off</string>
     <string name="webdav_cache_metered">Prefetch on metered networks</string>
+
+    <!-- Extension sources (.jdr packages) -->
+    <string name="extensions_title">Extension sources</string>
+    <string name="extensions_import_file">Import .jdr package</string>
+    <string name="extensions_import_file_summary">Pick a local .jdr file</string>
+    <string name="extensions_import_url">Import from link</string>
+    <string name="extensions_import_url_summary">Download and install a .jdr package from a URL</string>
+    <string name="extensions_import_url_hint">https://example.com/source.jdr</string>
+    <string name="extensions_import">Import</string>
+    <string name="extensions_empty">No extension sources installed. Import a .jdr package to add local search sources.</string>
+    <string name="extensions_package_version">Version %1$s</string>
+    <string name="extensions_package_author">By %1$s</string>
+    <string name="extensions_uninstall">Uninstall package</string>
+    <string name="extensions_uninstall_confirm">Uninstall this package? Its sources disappear from search; books already on the shelf keep working until removed.</string>
+    <string name="settings_extensions_title">Extension sources</string>
+    <string name="settings_extensions_summary">Import and manage .jdr interface sources</string>
 </resources>

@@ -142,6 +142,22 @@ private fun Settings(
       }
       item {
         ListItem(
+          modifier = Modifier.clickable { listener.openExtensions() },
+          leadingContent = {
+            Icon(
+              imageVector = VoiceIcons.Download,
+              contentDescription = stringResource(StringsR.string.settings_extensions_title),
+            )
+          },
+          supportingContent = {
+            Text(stringResource(StringsR.string.settings_extensions_summary))
+          },
+        ) {
+          Text(stringResource(StringsR.string.settings_extensions_title))
+        }
+      }
+      item {
+        ListItem(
           modifier = Modifier.clickable { listener.setOnlineSourceEnabled(!viewState.onlineSourceEnabled) },
           leadingContent = {
             Icon(

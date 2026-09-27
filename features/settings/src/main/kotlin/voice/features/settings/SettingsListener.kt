@@ -24,6 +24,7 @@ interface SettingsListener {
   fun toggleAnalytics()
   fun openFolderPicker()
   fun openWebDav()
+  fun openExtensions()
   fun setAutoRefreshWifi(checked: Boolean)
   fun setBtSkipToChapter(checked: Boolean)
   fun onImportParallelismRowClick()
@@ -66,6 +67,7 @@ interface SettingsListener {
       override fun toggleAnalytics() {}
       override fun openFolderPicker() {}
       override fun openWebDav() {}
+      override fun openExtensions() {}
       override fun setAutoRefreshWifi(checked: Boolean) {}
       override fun onAppVersionClick() {}
       override fun openDeveloperMenu() {}

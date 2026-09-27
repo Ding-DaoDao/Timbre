@@ -18,4 +18,5 @@ dependencies {
   implementation(libs.materialKolor)
   implementation(libs.navigation3.ui)
   implementation(libs.coil)
+  implementation(libs.coil.gif)
 }

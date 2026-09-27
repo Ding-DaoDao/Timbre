@@ -109,4 +109,9 @@ sealed interface Destination {
   data object WebDavCache : Compose {
     override val trackingName: String get() = "WebDavCache"
   }
+
+  @Serializable
+  data object ExtensionSources : Compose {
+    override val trackingName: String get() = "ExtensionSources"
+  }
 }
