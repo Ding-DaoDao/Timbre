@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class OnlineSourceServiceTest {
 
@@ -19,6 +20,7 @@ class OnlineSourceServiceTest {
     FakeStore(""),
     booksStore,
     mockk(),
+    emptySet(),
   )
 
   @Test
@@ -61,6 +63,69 @@ class OnlineSourceServiceTest {
     assertEquals(3, stored.chapters.size)
     assertEquals(1800, stored.chapters.single { it.id == "c1" }.durationSeconds)
     assertEquals(1700, stored.chapters.single { it.id == "c3" }.durationSeconds)
+  }
+
+  @Test
+  fun `extension sources work without any server configuration`() = runTest {
+    val backend = FakeExtensionBackend()
+    val service = OnlineSourceService(
+      FakeStore(false),
+      FakeStore(""),
+      FakeStore(""),
+      FakeStore(""),
+      FakeBooksStore(),
+      mockk(relaxed = false),
+      setOf(backend),
+    )
+
+    // isConfigured() must be true from the extension alone, and the server
+    // client must never be touched
+    assertEquals(true, service.isConfigured())
+    assertEquals(
+      listOf(OnlineSourceInfo(name = "jdr:demo", displayName = "演示源", enabled = true)),
+      service.sources(),
+    )
+    assertEquals(
+      listOf(OnlineSearchResult(source = "jdr:demo", bookId = "b1", title = "书")),
+      service.search("jdr:demo", "斗罗"),
+    )
+    assertEquals(
+      listOf(OnlineChapter(id = "c1", title = "第1集", order = 1)),
+      service.chapters("jdr:demo", "b1"),
+    )
+    assertEquals("https://audio.example.com/a.mp3", service.resolveDirectUrl("jdr:demo", "b1", "c1"))
+    assertTrue(backend.searched)
+  }
+
+  private class FakeExtensionBackend : ExtensionOnlineSource {
+
+    var searched = false
+
+    override fun handles(source: String): Boolean = source.startsWith("jdr:")
+
+    override suspend fun hasEnabledSources(): Boolean = true
+
+    override suspend fun enabledSourceInfos(): List<OnlineSourceInfo> =
+      listOf(OnlineSourceInfo(name = "jdr:demo", displayName = "演示源", enabled = true))
+
+    override suspend fun search(
+      source: String,
+      keyword: String,
+    ): List<OnlineSearchResult> {
+      searched = true
+      return listOf(OnlineSearchResult(source = source, bookId = "b1", title = "书"))
+    }
+
+    override suspend fun chapters(
+      source: String,
+      bookId: String,
+    ): List<OnlineChapter> = listOf(OnlineChapter(id = "c1", title = "第1集", order = 1))
+
+    override suspend fun resolveDirectUrl(
+      source: String,
+      bookId: String,
+      chapterId: String,
+    ): String = "https://audio.example.com/a.mp3"
   }
 
   private class FakeStore<T>(initial: T) : DataStore<T> {

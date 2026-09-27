@@ -237,6 +237,10 @@ class SettingsViewModel(
     navigator.goTo(Destination.WebDavServers(Origin.Default))
   }
 
+  override fun openExtensions() {
+    navigator.goTo(Destination.ExtensionSources)
+  }
+
   override fun setAutoRefreshWifi(checked: Boolean) {
     mainScope.launch {
       autoRefreshWifiStore.updateData { checked }

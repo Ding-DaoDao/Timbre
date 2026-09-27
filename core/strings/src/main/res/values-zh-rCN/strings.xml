@@ -263,4 +263,20 @@
     <string name="webdav_cache_prefetch_5">5 章</string>
     <string name="webdav_cache_prefetch_off">关闭</string>
     <string name="webdav_cache_metered">允许移动网络预取</string>
+
+    <!-- 接口源（.jdr 扩展包） -->
+    <string name="extensions_title">接口源管理</string>
+    <string name="extensions_import_file">导入 .jdr 文件</string>
+    <string name="extensions_import_file_summary">从本机选择一个 .jdr 扩展包</string>
+    <string name="extensions_import_url">从链接导入</string>
+    <string name="extensions_import_url_summary">下载并安装网络上的 .jdr 扩展包</string>
+    <string name="extensions_import_url_hint">https://example.com/source.jdr</string>
+    <string name="extensions_import">导入</string>
+    <string name="extensions_empty">尚未安装接口源。导入 .jdr 扩展包即可在搜索中使用本地接口源。</string>
+    <string name="extensions_package_version">版本 %1$s</string>
+    <string name="extensions_package_author">作者：%1$s</string>
+    <string name="extensions_uninstall">卸载扩展包</string>
+    <string name="extensions_uninstall_confirm">确定卸载该扩展包吗？其源将从搜索中移除；已加入书架的书籍在删除前仍可播放。</string>
+    <string name="settings_extensions_title">接口源</string>
+    <string name="settings_extensions_summary">导入和管理 .jdr 接口源</string>
 </resources>

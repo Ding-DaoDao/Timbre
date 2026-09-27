@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.datastore.core.DataStore
 import coil.Coil
 import coil.ImageLoader
+import coil.decode.ImageDecoderDecoder
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import dev.zacsweers.metro.AppScope
@@ -30,6 +31,11 @@ class UIAppStartInitializer(
         // Cover files are rewritten under a stable path; last-modified keys
         // thrash the disk cache after every cover scan without helping.
         .addLastModifiedToFileCacheKey(false)
+        // interface sources (jdr) hand out .gif covers; without this decoder
+        // they silently render blank
+        .components {
+          add(ImageDecoderDecoder.Factory())
+        }
         // Shelf covers are small; keep more of them resident while scrolling.
         .memoryCache {
           MemoryCache.Builder(application)

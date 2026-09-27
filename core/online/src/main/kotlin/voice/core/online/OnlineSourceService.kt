@@ -24,6 +24,7 @@ public class OnlineSourceService internal constructor(
   @OnlineSourceTokenStore private val tokenStore: DataStore<String>,
   @OnlineSourceBooksStore private val booksStore: DataStore<List<OnlineBook>>,
   private val client: OnlineSourceClient,
+  private val extensionSources: Set<@JvmSuppressWildcards ExtensionOnlineSource>,
 ) {
 
   private val loginMutex = Mutex()
@@ -39,23 +40,48 @@ public class OnlineSourceService internal constructor(
 
   /** The list of search sources, only meaningful when enabled. */
   public suspend fun isConfigured(): Boolean {
+    return isServerConfigured() || extensionSources.any { it.hasEnabledSources() }
+  }
+
+  private suspend fun isServerConfigured(): Boolean {
     return enabledStore.data.first() &&
       baseUrlStore.data.first().isNotBlank() &&
       credentialStore.data.first().isNotBlank()
   }
 
+  private fun extensionBackendFor(source: String): ExtensionOnlineSource? {
+    return extensionSources.firstOrNull { it.handles(source) }
+  }
+
   public suspend fun sources(): List<OnlineSourceInfo> {
-    val (base, _) = authed()
-    return withRelogin { client.interfaces(base, it) }
+    // extension sources need no server: list them first, and never let a
+    // server failure (or missing configuration) hide them
+    val extensionInfos = extensionSources
+      .filter { it.hasEnabledSources() }
+      .flatMap { it.enabledSourceInfos() }
+    val serverInfos = if (isServerConfigured()) {
+      runCatching {
+        val (base, _) = authed()
+        withRelogin { client.interfaces(base, it) }
+      }.getOrDefault(emptyList())
+    } else {
+      emptyList()
+    }
+    return extensionInfos + serverInfos
   }
 
   /**
-   * Searches one source. [source] is an interface name from [sources].
+   * Searches one source. [source] is an interface name from [sources]
+   * or a `jdr:` prefixed extension source.
    */
   public suspend fun search(
     source: String,
     keyword: String,
   ): List<OnlineSearchResult> {
+    val backend = extensionBackendFor(source)
+    if (backend != null) {
+      return backend.search(source, keyword)
+    }
     val (base, _) = authed()
     return withRelogin {
       client.searchSource(base, it, source, keyword)
@@ -97,6 +123,10 @@ public class OnlineSourceService internal constructor(
     source: String,
     bookId: String,
   ): List<OnlineChapter> {
+    val backend = extensionBackendFor(source)
+    if (backend != null) {
+      return backend.chapters(source, bookId)
+    }
     val (base, _) = authed()
     return withRelogin {
       val response = client.sourceAlbumListResponse(base, it, source, bookId)
@@ -113,6 +143,10 @@ public class OnlineSourceService internal constructor(
     bookId: String,
     chapterId: String,
   ): String? {
+    val backend = extensionBackendFor(source)
+    if (backend != null) {
+      return backend.resolveDirectUrl(source, bookId, chapterId)
+    }
     val (base, _) = authed()
     return withRelogin { client.sourceAudio(base, it, source, bookId, chapterId) }
   }
