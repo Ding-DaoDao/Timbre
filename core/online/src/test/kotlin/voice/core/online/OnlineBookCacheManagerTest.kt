@@ -1,6 +1,5 @@
 package voice.core.online
 
-import voice.core.online.ResolvedStream
 import androidx.datastore.core.DataStore
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -22,6 +21,7 @@ import voice.core.common.PlaybackIoGate
 import voice.core.data.BookId
 import voice.core.logging.api.LogWriter
 import voice.core.logging.api.Logger
+import voice.core.online.ResolvedStream
 import kotlin.io.path.createTempDirectory
 import kotlin.test.Test
 import kotlin.test.assertEquals

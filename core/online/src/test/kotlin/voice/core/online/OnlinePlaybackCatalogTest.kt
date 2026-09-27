@@ -14,6 +14,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import voice.core.data.BookId
 import voice.core.data.ChapterId
+import voice.core.online.ResolvedStream
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -21,7 +22,6 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
-import voice.core.online.ResolvedStream
 import kotlin.time.TimeSource
 
 class OnlinePlaybackCatalogTest {

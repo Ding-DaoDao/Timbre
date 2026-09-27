@@ -1,6 +1,5 @@
 package voice.core.online
 
-import voice.core.online.ResolvedStream
 import android.app.Application
 import android.net.ConnectivityManager
 import io.mockk.Runs
@@ -20,6 +19,7 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import voice.core.common.DispatcherProvider
 import voice.core.data.BookId
 import voice.core.data.ChapterId
+import voice.core.online.ResolvedStream
 import kotlin.test.Test
 
 class OnlineDurationProbeAheadTest {
