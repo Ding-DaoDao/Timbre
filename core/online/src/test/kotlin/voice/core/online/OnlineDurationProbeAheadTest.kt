@@ -1,5 +1,6 @@
 package voice.core.online
 
+import voice.core.online.ResolvedStream
 import android.app.Application
 import android.net.ConnectivityManager
 import io.mockk.Runs
@@ -99,7 +100,7 @@ class OnlineDurationProbeAheadTest {
     return OnlineDurationProbeAhead(
       service = mockk {
         coEvery { resolveDirectUrl("A", "b", any()) } answers {
-          "http://cdn/x/${thirdArg<String>()}.mp3"
+          ResolvedStream("http://cdn/x/${thirdArg<String>()}.mp3")
         }
       },
       catalog = catalog,

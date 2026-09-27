@@ -94,7 +94,7 @@ class JsSourceEngineTest {
 
     server.enqueue(MockResponse.Builder().body("""{"url":"https://audio.example.com/1.mp3"}""").build())
     val audioJson = engine.invoke("audio", """{"bookId":"7","chapterId":"1","albumId":"7"}""", 15_000)
-    assertEquals("https://audio.example.com/1.mp3", SourceContract.parseAudioUrl(audioJson))
+    assertEquals("https://audio.example.com/1.mp3", SourceContract.parseAudio(audioJson).url)
     assertEquals("GET", server.takeRequest().method) // the chapters request
     val audioRequest = server.takeRequest()
     assertEquals("POST", audioRequest.method)

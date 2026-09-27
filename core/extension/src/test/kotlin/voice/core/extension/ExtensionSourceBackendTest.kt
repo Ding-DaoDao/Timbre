@@ -102,9 +102,9 @@ class ExtensionSourceBackendTest {
     assertEquals(1, searchResults.size)
     val chapterList = backend.chapters("jdr:demo", "7")
     assertEquals(1, chapterList.size)
-    val url = backend.resolveDirectUrl("jdr:demo", "7", "10")
+    val stream = backend.resolveDirectUrl("jdr:demo", "7", "10")
 
-    assertEquals("https://cdn.example.com/10.mp3", url)
+    assertEquals("https://cdn.example.com/10.mp3", stream?.url)
     val chaptersParams = recorded.paramsByStage.getValue("chapters")
     assertTrue(chaptersParams.contains("AL-7"), chaptersParams)
     assertTrue(chaptersParams.contains(""""bookId":"7""""))

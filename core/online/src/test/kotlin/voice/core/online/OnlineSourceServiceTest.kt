@@ -93,7 +93,7 @@ class OnlineSourceServiceTest {
       listOf(OnlineChapter(id = "c1", title = "第1集", order = 1)),
       service.chapters("jdr:demo", "b1"),
     )
-    assertEquals("https://audio.example.com/a.mp3", service.resolveDirectUrl("jdr:demo", "b1", "c1"))
+    assertEquals("https://audio.example.com/a.mp3", service.resolveDirectUrl("jdr:demo", "b1", "c1")?.url)
     assertTrue(backend.searched)
   }
 
@@ -125,7 +125,7 @@ class OnlineSourceServiceTest {
       source: String,
       bookId: String,
       chapterId: String,
-    ): String = "https://audio.example.com/a.mp3"
+    ): ResolvedStream = ResolvedStream("https://audio.example.com/a.mp3")
   }
 
   private class FakeStore<T>(initial: T) : DataStore<T> {

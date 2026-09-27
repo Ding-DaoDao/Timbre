@@ -21,6 +21,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
+import voice.core.online.ResolvedStream
 import kotlin.time.TimeSource
 
 class OnlinePlaybackCatalogTest {
@@ -140,15 +141,15 @@ class OnlinePlaybackCatalogTest {
     // the player re-opens the stream on every seek: asking the source again
     // would stall the chapter the user is already listening to
     val ref = OnlineChapterRef(THIRD_PARTY_SOURCE, BOOK_ID, "c1")
-    coEvery { service.resolveDirectUrl(THIRD_PARTY_SOURCE, BOOK_ID, "c1") } returns STREAM_URL
+    coEvery { service.resolveDirectUrl(THIRD_PARTY_SOURCE, BOOK_ID, "c1") } returns ResolvedStream(STREAM_URL)
 
-    assertEquals(STREAM_URL, catalog.resolveStreamUrl(ref))
-    assertEquals(STREAM_URL, catalog.resolveStreamUrl(ref))
+    assertEquals(STREAM_URL, catalog.resolveStreamUrl(ref)?.url)
+    assertEquals(STREAM_URL, catalog.resolveStreamUrl(ref)?.url)
     coVerify(exactly = 1) { val _ = service.resolveDirectUrl(THIRD_PARTY_SOURCE, BOOK_ID, "c1") }
 
     // a signed link the server rejects is dropped, so the next resolve is fresh
     assertTrue(catalog.invalidateStreamUrl(ref))
-    assertEquals(STREAM_URL, catalog.resolveStreamUrl(ref))
+    assertEquals(STREAM_URL, catalog.resolveStreamUrl(ref)?.url)
     coVerify(exactly = 2) {
       val _ = service.resolveDirectUrl(THIRD_PARTY_SOURCE, BOOK_ID, "c1")
     }
@@ -175,7 +176,7 @@ class OnlinePlaybackCatalogTest {
       calls++
       started.complete(Unit)
       release.await()
-      STREAM_URL
+      ResolvedStream(STREAM_URL)
     }
 
     // stay on the test scheduler: Dispatchers.Default + runTest can leave the
@@ -187,8 +188,8 @@ class OnlinePlaybackCatalogTest {
     yield()
     release.complete(Unit)
 
-    assertEquals(STREAM_URL, first.await())
-    assertEquals(STREAM_URL, second.await())
+    assertEquals(STREAM_URL, first.await()?.url)
+    assertEquals(STREAM_URL, second.await()?.url)
     assertEquals(1, calls)
   }
 
@@ -200,7 +201,7 @@ class OnlinePlaybackCatalogTest {
     coEvery { service.resolveDirectUrl(THIRD_PARTY_SOURCE, BOOK_ID, "c1") } coAnswers {
       started.complete(Unit)
       release.await()
-      "https://cdn.example.com/rejected.mp3"
+      ResolvedStream("https://cdn.example.com/rejected.mp3")
     }
 
     val slow = async { catalog.resolveStreamUrl(ref) }
@@ -208,11 +209,11 @@ class OnlinePlaybackCatalogTest {
     // data source rejected the url while resolve is still finishing
     assertTrue(catalog.invalidateStreamUrl(ref))
     release.complete(Unit)
-    assertEquals("https://cdn.example.com/rejected.mp3", slow.await())
+    assertEquals("https://cdn.example.com/rejected.mp3", slow.await()?.url)
 
     // next resolve must hit the source again instead of serving the rejected url
-    coEvery { service.resolveDirectUrl(THIRD_PARTY_SOURCE, BOOK_ID, "c1") } returns STREAM_URL
-    assertEquals(STREAM_URL, catalog.resolveStreamUrl(ref))
+    coEvery { service.resolveDirectUrl(THIRD_PARTY_SOURCE, BOOK_ID, "c1") } returns ResolvedStream(STREAM_URL)
+    assertEquals(STREAM_URL, catalog.resolveStreamUrl(ref)?.url)
     coVerify(atLeast = 2) {
       val _ = service.resolveDirectUrl(THIRD_PARTY_SOURCE, BOOK_ID, "c1")
     }
@@ -224,11 +225,11 @@ class OnlinePlaybackCatalogTest {
     var resolvingWhileRunning: Set<String>? = null
     coEvery { service.resolveDirectUrl(THIRD_PARTY_SOURCE, BOOK_ID, "c1") } coAnswers {
       resolvingWhileRunning = catalog.resolvingBooks.value
-      STREAM_URL
+      ResolvedStream(STREAM_URL)
     }
 
     assertTrue(catalog.resolvingBooks.value.isEmpty())
-    assertEquals(STREAM_URL, catalog.resolveStreamUrl(ref))
+    assertEquals(STREAM_URL, catalog.resolveStreamUrl(ref)?.url)
 
     assertEquals(
       expected = setOf(OnlineUri.buildBookUri(THIRD_PARTY_SOURCE, BOOK_ID)),

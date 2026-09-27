@@ -137,18 +137,18 @@ public class OnlineSourceService internal constructor(
     }
   }
 
-  /** Resolves a temporary direct streaming url for one chapter. */
+  /** Resolves a temporary direct streaming url (plus optional headers) for one chapter. */
   public suspend fun resolveDirectUrl(
     source: String,
     bookId: String,
     chapterId: String,
-  ): String? {
+  ): ResolvedStream? {
     val backend = extensionBackendFor(source)
     if (backend != null) {
       return backend.resolveDirectUrl(source, bookId, chapterId)
     }
     val (base, _) = authed()
-    return withRelogin { client.sourceAudio(base, it, source, bookId, chapterId) }
+    return withRelogin { client.sourceAudio(base, it, source, bookId, chapterId)?.let(::ResolvedStream) }
   }
 
   /** The books added from the online source, most recently added first. */

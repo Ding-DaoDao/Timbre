@@ -9,7 +9,8 @@
 
 | 文件                                                            | 说明                                                                  |
 | ------------------------------------------------------------- | ------------------------------------------------------------------- |
-| [extension-dev-guide.md](extension-dev-guide.md)              | **接口源开发指南**（主文档）：如何编写接口（含 Python→JS 对照、加密桥用法）、如何打包 .jdr、如何导入验证、常见坑  |
+| [extension-dev-guide.md](extension-dev-guide.md)              | **接口源开发指南**（主文档）：如何编写接口（含 Python→JS 对照、加密桥用法、防盗链头）、如何打包 .jdr、如何导入验证、常见坑 |
+| [abts-bili/](abts-bili/)                                      | **完整真实示例**：B站有声源（Cookie 风控预热 + Wbi 签名 + 防盗链 `{url, headers}`）——Web API 类站点的参考模板 |
 | [\_template.js](_template.js)                                 | **空白脚本模板**：复制它开始写你自己的接口，注释里有 manifest.json 的完整字段说明                  |
 | [demo-source/](demo-source/)                                  | **最小示例包**：一个只依赖普通 HTTP 接口的完整源（manifest.json + demo.js），演示标准字段与三阶段结构 |
 | [../scripts/pack\_jdr.py](../scripts/pack_jdr.py)             | **打包脚本**（Python 版）：把目录压成 .jdr                                       |
@@ -17,12 +18,25 @@
 
 ## 三步上手
 
-1. **写接口**：复制 `_template.js`，实现 `search / chapters / audio` 三个 `async` 函数。  
+1. **写接口**：复制 `_template.js`（或直接以 [abts-bili/](abts-bili/) 为模板），实现  
+   `search / chapters / audio` 三个 `async` 函数。  
    标准字段与三阶段的入参出参，见 [开发指南 · 契约对照](extension-dev-guide.md#一契约对照python--js)。
 2. **配 manifest**：包 id 与源 id 的规则、多接口合一的写法，  
    见 [开发指南 · 打包](extension-dev-guide.md#四打包成-jdr) 与 [demo-source/manifest.json](demo-source/manifest.json)。
 3. **打包导入**：`python scripts/pack_jdr.py 你的目录 输出.jdr`（或把目录压成 zip 改后缀），  
    播放器 **设置 → 接口源 → 导入 .jdr 文件 / 从链接导入**。
+
+## 音频返回的三种形态（重要）
+
+| 写法 | 用途 |
+| --- | --- |
+| `return 'https://...mp3'` | 普通CDN:无特殊请求头 |
+| `return { url: 'https://...' }` | 等价于上一种 |
+| `return { url: '...', headers: { Referer: '...' } }` | **防盗链CDN**(B站等):拉流时播放器自动带上头 |
+
+遇到"搜索正常但播放 403"的站点，就是最后一种：参考 [abts-bili/abts.js](abts-bili/abts.js) 的  
+audio 阶段，把站点要求的 Referer/UA/Cookie 放进 `headers` 一起返回，其余交给播放器。  
+完整说明见 [开发指南 · 示例源C](extension-dev-guide.md#三五示例源-cb站有声web-api--wbi-签名--防盗链-referer-头)。
 
 ## 沙箱能力速览
 

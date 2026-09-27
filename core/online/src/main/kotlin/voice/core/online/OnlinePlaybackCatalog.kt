@@ -131,7 +131,7 @@ public class OnlinePlaybackCatalog(
    * probe can open the same chapter concurrently; coalescing them avoids two
    * full download/API round trips on a cold start.
    */
-  private val inFlightResolves = ConcurrentHashMap<String, Deferred<String?>>()
+  private val inFlightResolves = ConcurrentHashMap<String, Deferred<ResolvedStream?>>()
 
   /**
    * Bumped by [invalidateStreamUrl] so a resolve that outlives an invalidate
@@ -611,7 +611,7 @@ public class OnlinePlaybackCatalog(
    * for the same chapter share one in-flight resolve so a cold open does not
    * pay the download/API cost twice.
    */
-  public suspend fun resolveStreamUrl(ref: OnlineChapterRef): String? {
+  public suspend fun resolveStreamUrl(ref: OnlineChapterRef): ResolvedStream? {
     val chapterUri = OnlineUri.build(ref.source, ref.bookId, ref.chapterId)
     cachedStreamUrl(chapterUri)?.let { return it }
 
@@ -620,7 +620,7 @@ public class OnlinePlaybackCatalog(
       if (existing != null) {
         return existing.await()
       }
-      val deferred = CompletableDeferred<String?>()
+      val deferred = CompletableDeferred<ResolvedStream?>()
       val winner = inFlightResolves.putIfAbsent(chapterUri, deferred)
       if (winner != null) {
         return winner.await()
@@ -681,10 +681,10 @@ public class OnlinePlaybackCatalog(
     return true
   }
 
-  private fun cachedStreamUrl(chapterUri: String): String? {
+  private fun cachedStreamUrl(chapterUri: String): ResolvedStream? {
     val cached = synchronized(stateLock) { streamUrls[chapterUri] } ?: return null
     if (SystemClock.elapsedRealtime() - cached.resolvedAt <= STREAM_URL_TTL_MS) {
-      return cached.url
+      return cached.stream
     }
     synchronized(stateLock) { streamUrls.remove(chapterUri) }
     return null
@@ -711,7 +711,7 @@ public class OnlinePlaybackCatalog(
     _resolvingBooks.value = resolving
   }
 
-  private suspend fun resolveStreamUrlInternal(ref: OnlineChapterRef): String? {
+  private suspend fun resolveStreamUrlInternal(ref: OnlineChapterRef): ResolvedStream? {
     return try {
       service.resolveDirectUrl(ref.source, ref.bookId, ref.chapterId)
         ?: fail(ref, OnlinePlaybackErrorKind.CONTENT, "The source returned no audio url")
@@ -745,7 +745,7 @@ public class OnlinePlaybackCatalog(
     ref: OnlineChapterRef,
     kind: OnlinePlaybackErrorKind,
     detail: String?,
-  ): String? {
+  ): ResolvedStream? {
     Logger.w("Online playback resolution failed for $ref: $detail")
     val now = SystemClock.elapsedRealtime()
     val dedupeKey = "${ref.source}::${ref.bookId}::${ref.chapterId}::$kind"
@@ -772,7 +772,7 @@ public class OnlinePlaybackCatalog(
   )
 
   private data class CachedStreamUrl(
-    val url: String,
+    val stream: ResolvedStream,
     val resolvedAt: Long,
   )
 
