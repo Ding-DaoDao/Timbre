@@ -1,5 +1,6 @@
 package voice.core.extension
 
+import android.annotation.SuppressLint
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
@@ -17,6 +18,7 @@ import java.security.SecureRandom
 import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
 
 /**
@@ -82,23 +84,32 @@ public class ExtensionEngineProvider(private val manager: ExtensionManager) {
       .readTimeout(30, TimeUnit.SECONDS)
       .writeTimeout(30, TimeUnit.SECONDS)
     if (allowInsecure) {
-      val trustManager = object : X509TrustManager {
-        override fun checkClientTrusted(
-          chain: Array<X509Certificate>,
-          authType: String,
-        ) {}
-        override fun checkServerTrusted(
-          chain: Array<X509Certificate>,
-          authType: String,
-        ) {}
-        override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
-      }
       val context = SSLContext.getInstance("TLS")
-      context.init(null, arrayOf(trustManager), SecureRandom())
-      builder.sslSocketFactory(context.socketFactory, trustManager)
+      context.init(null, arrayOf<TrustManager>(TrustAllX509TrustManager), SecureRandom())
+      builder.sslSocketFactory(context.socketFactory, TrustAllX509TrustManager)
         .hostnameVerifier { _, _ -> true }
     }
     return builder.build()
+  }
+
+  /**
+   * Opt-in per package for broken TLS chains: the manifest's `allowInsecure`
+   * flag explicitly enables trusting arbitrary certificates, mirroring the
+   * WebDAV trust-all option. Lint-suppressed at the declaration level.
+   */
+  @SuppressLint("CustomX509TrustManager", "TrustAllX509TrustManager")
+  private object TrustAllX509TrustManager : X509TrustManager {
+    override fun checkClientTrusted(
+      chain: Array<X509Certificate>,
+      authType: String,
+    ) = Unit
+
+    override fun checkServerTrusted(
+      chain: Array<X509Certificate>,
+      authType: String,
+    ) = Unit
+
+    override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
   }
 
   private data class CachedEngine(
