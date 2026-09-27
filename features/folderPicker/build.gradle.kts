@@ -17,6 +17,8 @@ dependencies {
   implementation(projects.core.playback)
   implementation(projects.core.scanner)
   implementation(projects.core.data.api)
+  implementation(projects.core.extension)
+  implementation(projects.core.extensionEngine)
   implementation(projects.core.documentfile)
   implementation(projects.navigation)
   implementation(projects.core.featureflag)

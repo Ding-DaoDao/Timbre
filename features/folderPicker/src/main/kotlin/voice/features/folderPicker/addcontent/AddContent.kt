@@ -1,7 +1,12 @@
 package voice.features.folderPicker.addcontent
 
+import android.widget.Toast
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.retain.retain
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation3.runtime.NavEntry
 import dev.zacsweers.metro.AppScope
@@ -36,14 +41,21 @@ fun AddContent(origin: Origin) {
   val viewModel = retain(origin.name) {
     rootGraphAs<AddContentGraph>().viewModelFactory.create(origin)
   }
+  val context = LocalContext.current
+  val importError by viewModel.sourceImportError.collectAsState()
+  LaunchedEffect(importError) {
+    importError?.let {
+      Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+      viewModel.consumeImportError()
+    }
+  }
   SelectFolder(
     onBack = {
       viewModel.back()
     },
     origin = origin,
-    onAdd = { folderType, uri ->
-      viewModel.add(uri, folderType)
-    },
+    onAddFolder = viewModel::addFolder,
+    onImportSource = viewModel::importSource,
     // the onboarding import page offers webdav as well: a fresh install has
     // no settings entry to configure a server yet, so this is the only place
     // to reach it from
