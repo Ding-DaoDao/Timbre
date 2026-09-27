@@ -425,4 +425,9 @@
     <string name="extensions_uninstall_confirm">Uninstall this package? Its sources disappear from search; books already on the shelf keep working until removed.</string>
     <string name="settings_extensions_title">Extension sources</string>
     <string name="settings_extensions_summary">Import and manage .jdr interface sources</string>
+    <string name="folder_add_type_source">Import source</string>
+    <string name="folder_add_source_title">Import source</string>
+    <string name="folder_add_source_url_hint">Source link (https://…/source.jdr)</string>
+    <string name="folder_add_source_pick_file">Pick a local .jdr file</string>
+    <string name="folder_add_source_confirm">Import</string>
 </resources>

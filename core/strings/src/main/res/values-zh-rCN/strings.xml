@@ -279,4 +279,9 @@
     <string name="extensions_uninstall_confirm">确定卸载该扩展包吗？其源将从搜索中移除；已加入书架的书籍在删除前仍可播放。</string>
     <string name="settings_extensions_title">接口源</string>
     <string name="settings_extensions_summary">导入和管理 .jdr 接口源</string>
+    <string name="folder_add_type_source">导入书源</string>
+    <string name="folder_add_source_title">导入书源</string>
+    <string name="folder_add_source_url_hint">书源链接（https://…/xxx.jdr）</string>
+    <string name="folder_add_source_pick_file">选择本地 .jdr 文件</string>
+    <string name="folder_add_source_confirm">导入</string>
 </resources>

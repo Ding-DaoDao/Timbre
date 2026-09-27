@@ -20,14 +20,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import voice.features.folderPicker.R
-import voice.features.folderPicker.folderPicker.FileTypeSelection
 import voice.navigation.Origin
 import voice.core.strings.R as StringsR
 
 @Composable
 internal fun SelectFolder(
   onBack: () -> Unit,
-  onAdd: (FileTypeSelection, Uri) -> Unit,
+  onAddFolder: (Uri) -> Unit,
+  onImportSource: (SourceImport) -> Unit,
   origin: Origin,
   modifier: Modifier = Modifier,
   onWebDav: (() -> Unit)? = null,
@@ -71,7 +71,7 @@ internal fun SelectFolder(
             style = MaterialTheme.typography.bodyLarge,
           )
           Spacer(modifier = Modifier.size(24.dp))
-          SelectFolderButtonRow(onAdd, onWebDav)
+          SelectFolderButtonRow(onAddFolder, onImportSource, onWebDav)
         }
       }
     },
@@ -90,7 +90,8 @@ private fun shouldShowImage(): Boolean {
 private fun SelectFolderPreview() {
   SelectFolder(
     onBack = {},
-    onAdd = { _, _ -> },
+    onAddFolder = {},
+    onImportSource = {},
     origin = Origin.Default,
   )
 }
