@@ -430,5 +430,4 @@
     <string name="folder_add_source_url_hint">Source link (https://…/source.jdr)</string>
     <string name="folder_add_source_pick_file">Pick a local .jdr file</string>
     <string name="folder_add_source_confirm">Import</string>
-    <string name="folder_add_source_failed">Import failed: %1$s</string>
 </resources>

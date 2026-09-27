@@ -284,5 +284,4 @@
     <string name="folder_add_source_url_hint">书源链接（https://…/xxx.jdr）</string>
     <string name="folder_add_source_pick_file">选择本地 .jdr 文件</string>
     <string name="folder_add_source_confirm">导入</string>
-    <string name="folder_add_source_failed">书源导入失败：%1$s</string>
 </resources>
