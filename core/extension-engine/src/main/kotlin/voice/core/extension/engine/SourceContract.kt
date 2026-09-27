@@ -26,6 +26,17 @@ public data class ChapterItem(
   public val extra: JsonObject,
 )
 
+/**
+ * The audio stage result: the direct stream url plus the http headers the
+ * player must send when fetching it (Referer / User-Agent / Cookie for
+ * hotlink-protected CDNs). Sources that return a plain url get empty
+ * [headers], which reproduces the old headerless behavior exactly.
+ */
+public data class AudioResolution(
+  public val url: String,
+  public val headers: Map<String, String>,
+)
+
 /** Thrown when a source script violates the field contract. */
 public class SourceContractException public constructor(
   message: String,
@@ -72,8 +83,22 @@ public object SourceContract {
     }
   }
 
-  /** Returns the resolved audio url. */
-  public fun parseAudioUrl(json: String): String {
+  /**
+   * Returns the resolved audio url.
+   *
+   * @Deprecated use [parseAudio]; kept for callers that only need the url.
+   */
+  @Deprecated(message = "use parseAudio", replaceWith = ReplaceWith("parseAudio(json).url"))
+  public fun parseAudioUrl(json: String): String = parseAudio(json).url
+
+  /**
+   * Validates and normalizes the JSON the audio stage returns: either a plain
+   * http(s) url string, or an object with a `url` field plus an optional
+   * `headers` object the player must send when fetching the stream (Referer /
+   * User-Agent / Cookie for hotlink-protected CDNs). Unknown object fields are
+   * ignored; header names/values are sanitized against CRLF injection.
+   */
+  public fun parseAudio(json: String): AudioResolution {
     val element = try {
       json.decodeJsonLenient()
     } catch (e: Exception) {
@@ -90,7 +115,27 @@ public object SourceContract {
     if (!url.startsWith("http://") && !url.startsWith("https://")) {
       throw SourceContractException("audio 返回的 URL 不是 http(s) 链接")
     }
-    return url
+    val headers = LinkedHashMap<String, String>()
+    if (element is JsonObject) {
+      val declared = element["headers"]
+      if (declared != null && declared !is JsonObject) {
+        throw SourceContractException("audio 的 headers 必须是对象")
+      }
+      declared?.forEach { (name, value) ->
+        val headerName = name.trim()
+        val headerValue = (value as? JsonPrimitive)?.contentOrNull
+        if (headerName.isEmpty() || headerValue.isNullOrEmpty()) return@forEach
+        if (headerName.length > 128 || headerValue.length > 8192) return@forEach
+        // CRLF injection guard: a header name additionally must not contain
+        // the name/value separator itself (values may legitimately hold ':').
+        if (headerName.contains('\r') || headerName.contains('\n') || headerName.contains(':')) {
+          return@forEach
+        }
+        if (headerValue.contains('\r') || headerValue.contains('\n')) return@forEach
+        headers[headerName] = headerValue
+      }
+    }
+    return AudioResolution(url, headers)
   }
 
   private inline fun <T> parseItems(

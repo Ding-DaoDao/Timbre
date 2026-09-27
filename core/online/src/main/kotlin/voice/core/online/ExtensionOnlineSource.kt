@@ -32,5 +32,5 @@ public interface ExtensionOnlineSource {
     source: String,
     bookId: String,
     chapterId: String,
-  ): String?
+  ): ResolvedStream?
 }

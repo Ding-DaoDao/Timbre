@@ -19,6 +19,7 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import voice.core.common.DispatcherProvider
 import voice.core.data.BookId
 import voice.core.data.ChapterId
+import voice.core.online.ResolvedStream
 import kotlin.test.Test
 
 class OnlineDurationProbeAheadTest {
@@ -99,7 +100,7 @@ class OnlineDurationProbeAheadTest {
     return OnlineDurationProbeAhead(
       service = mockk {
         coEvery { resolveDirectUrl("A", "b", any()) } answers {
-          "http://cdn/x/${thirdArg<String>()}.mp3"
+          ResolvedStream("http://cdn/x/${thirdArg<String>()}.mp3")
         }
       },
       catalog = catalog,

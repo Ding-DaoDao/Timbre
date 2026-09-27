@@ -23,7 +23,7 @@ public class OnlineStreamingDataSource internal constructor(
   private val okHttpClient: OkHttpClient,
   private val baseUrlProvider: () -> String,
   private val tokenProvider: () -> String,
-  private val urlResolver: (OnlineChapterRef) -> String?,
+  private val urlResolver: (OnlineChapterRef) -> ResolvedStream?,
   private val onUrlRejected: (OnlineChapterRef) -> Boolean = { false },
   private val onDurationResolved: (OnlineChapterRef, Long) -> Unit = { _, _ -> },
   private val hasMeasuredDuration: (OnlineChapterRef) -> Boolean = { false },
@@ -156,24 +156,24 @@ public class OnlineStreamingDataSource internal constructor(
     dataSpec: DataSpec,
     ref: OnlineChapterRef,
   ): Response {
-    val resolvedUrl = urlResolver(ref)
+    val resolved = urlResolver(ref)
       ?: throw invalidResponse(404, dataSpec.uri.toString(), emptyMap(), dataSpec)
-    val response = execute(dataSpec, resolvedUrl)
+    val response = execute(dataSpec, resolved.url, resolved.headers)
     if (response.isSuccessful) return response
     val code = response.code
     val headers = response.headers.toMultimap()
     response.close()
-    if (!onUrlRejected(ref)) throw invalidResponse(code, resolvedUrl, headers, dataSpec)
-    val refreshedUrl = urlResolver(ref)
-    if (refreshedUrl == null || refreshedUrl == resolvedUrl) {
-      throw invalidResponse(code, resolvedUrl, headers, dataSpec)
+    if (!onUrlRejected(ref)) throw invalidResponse(code, resolved.url, headers, dataSpec)
+    val refreshed = urlResolver(ref)
+    if (refreshed == null || refreshed.url == resolved.url) {
+      throw invalidResponse(code, resolved.url, headers, dataSpec)
     }
-    val retryResponse = execute(dataSpec, refreshedUrl)
+    val retryResponse = execute(dataSpec, refreshed.url, refreshed.headers)
     if (retryResponse.isSuccessful) return retryResponse
     val retryCode = retryResponse.code
     val retryHeaders = retryResponse.headers.toMultimap()
     retryResponse.close()
-    throw invalidResponse(retryCode, refreshedUrl, retryHeaders, dataSpec)
+    throw invalidResponse(retryCode, refreshed.url, retryHeaders, dataSpec)
   }
 
   /**
@@ -185,15 +185,16 @@ public class OnlineStreamingDataSource internal constructor(
   private fun execute(
     dataSpec: DataSpec,
     url: String,
+    sourceHeaders: Map<String, String>,
   ): Response {
     return try {
-      okHttpClient.newCall(request(dataSpec, url)).execute()
+      okHttpClient.newCall(request(dataSpec, url, sourceHeaders)).execute()
     } catch (e: IOException) {
       val httpUrl = OnlineStreamUrlPolicy.downgradeToHttp(url)
       if (httpUrl == null || !isCertificateProblem(e)) throw e
       Logger.w("TLS handshake failed for source host, retrying over http: ${e.message}")
       OnlineStreamUrlPolicy.rememberCertBroken(url)
-      okHttpClient.newCall(request(dataSpec, httpUrl)).execute()
+      okHttpClient.newCall(request(dataSpec, httpUrl, sourceHeaders)).execute()
     }
   }
 
@@ -204,6 +205,7 @@ public class OnlineStreamingDataSource internal constructor(
   private fun request(
     dataSpec: DataSpec,
     url: String,
+    sourceHeaders: Map<String, String> = emptyMap(),
   ): Request {
     // sources occasionally hand out links on hosts with broken certificates;
     // those are served over http as well, so downgrade instead of failing
@@ -221,6 +223,11 @@ public class OnlineStreamingDataSource internal constructor(
       // some cdns answer closed ranges (bytes=start-end) with an empty body,
       // so always request an open ended range and cap the read length here
       requestBuilder.header("Range", "bytes=$rangeStart-")
+    }
+    // headers the source script asked for (Referer / User-Agent / Cookie for
+    // hotlink-protected cdns); the contract layer already sanitized them
+    for ((name, value) in sourceHeaders) {
+      requestBuilder.header(name, value)
     }
     return requestBuilder.build()
   }
@@ -318,7 +325,7 @@ public class OnlineDataSourceFactory internal constructor(
   private val okHttpClient: OkHttpClient,
   private val baseUrlProvider: () -> String,
   private val tokenProvider: () -> String,
-  private val urlResolver: (OnlineChapterRef) -> String?,
+  private val urlResolver: (OnlineChapterRef) -> ResolvedStream?,
   private val onUrlRejected: (OnlineChapterRef) -> Boolean = { false },
   private val onDurationResolved: (OnlineChapterRef, Long) -> Unit = { _, _ -> },
   private val hasMeasuredDuration: (OnlineChapterRef) -> Boolean = { false },

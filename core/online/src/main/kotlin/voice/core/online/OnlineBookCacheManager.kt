@@ -432,15 +432,15 @@ public class OnlineBookCacheManager(
         }
         // resolveStreamUrl reports failures as null and only throws on
         // cancellation, so no runCatching: it would swallow the cancellation
-        val url = catalog.resolveStreamUrl(ref)
-        if (url.isNullOrBlank()) {
+        val stream = catalog.resolveStreamUrl(ref)
+        if (stream == null || stream.url.isBlank()) {
           failed++
           consecutiveFailures++
           updateState(bookUri, generation) { it.copy(done = done, failed = failed) }
           if (consecutiveFailures >= ABORT_AFTER_CONSECUTIVE_FAILURES) break
           continue
         }
-        val downloaded = downloadSlots.withPermit { downloadToCache(ref, url) }
+        val downloaded = downloadSlots.withPermit { downloadToCache(ref, stream.url) }
         if (downloaded) {
           done++
           consecutiveFailures = 0

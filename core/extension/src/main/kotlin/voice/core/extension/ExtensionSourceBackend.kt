@@ -11,6 +11,7 @@ import voice.core.online.ExtensionOnlineSource
 import voice.core.online.OnlineChapter
 import voice.core.online.OnlineSearchResult
 import voice.core.online.OnlineSourceInfo
+import voice.core.online.ResolvedStream
 import java.util.LinkedHashMap
 
 /** sourceId/bookId 级别的透传字段缓存；容量有限，防止长会话内存无限增长。 */
@@ -124,7 +125,7 @@ public class ExtensionSourceBackend(
     source: String,
     bookId: String,
     chapterId: String,
-  ): String? {
+  ): ResolvedStream? {
     val sourceId = sourceId(source)
     val params = params(
       base = linkedMapOf("bookId" to bookId, "chapterId" to chapterId),
@@ -133,7 +134,8 @@ public class ExtensionSourceBackend(
     val json = engineProvider.useEngine(sourceId) {
       it.invoke("audio", params, AUDIO_TIMEOUT_MS)
     }
-    return SourceContract.parseAudioUrl(json)
+    val parsed = SourceContract.parseAudio(json)
+    return ResolvedStream(parsed.url, parsed.headers)
   }
 
   private fun sourceId(source: String): String = source.removePrefix(ExtensionEngineProvider.SOURCE_PREFIX)

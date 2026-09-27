@@ -90,9 +90,9 @@ public class OnlineDurationProbeAhead internal constructor(
     bookId: String,
     chapter: OnlineChapter,
   ) {
-    val url = runCatching { service.resolveDirectUrl(source, bookId, chapter.id) }.getOrNull()
+    val stream = runCatching { service.resolveDirectUrl(source, bookId, chapter.id) }.getOrNull()
       ?: return
-    val durationMs = runCatching { probeUrl(url) }.getOrNull() ?: return
+    val durationMs = runCatching { probeUrl(stream.url, stream.headers) }.getOrNull() ?: return
     if (durationMs > 0L) {
       catalog.recordMeasuredDuration(source, bookId, chapter.id, durationMs)
     }
@@ -103,12 +103,17 @@ public class OnlineDurationProbeAhead internal constructor(
    * Returns null when the server ignores ranges, hides the total size, or the
    * head holds no usable frame.
    */
-  internal fun probeUrl(url: String): Long? {
-    val request = Request.Builder()
+  internal fun probeUrl(
+    url: String,
+    sourceHeaders: Map<String, String> = emptyMap(),
+  ): Long? {
+    val requestBuilder = Request.Builder()
       .url(url)
       .header("Range", "bytes=0-${PROBE_BYTES - 1}")
-      .build()
-    httpClient.newCall(request).execute().use { response ->
+    for ((name, value) in sourceHeaders) {
+      requestBuilder.header(name, value)
+    }
+    httpClient.newCall(requestBuilder.build()).execute().use { response ->
       if (!response.isSuccessful && response.code != 206) return null
       // for a 206 the body length is the window, not the file: the total only
       // comes from Content-Range. A 200 (range ignored) carries the total in
