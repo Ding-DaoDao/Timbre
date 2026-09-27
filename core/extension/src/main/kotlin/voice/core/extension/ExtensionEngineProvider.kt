@@ -3,12 +3,6 @@ package voice.core.extension
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
-import java.io.File
-import java.security.SecureRandom
-import java.security.cert.X509Certificate
-import java.util.concurrent.TimeUnit
-import javax.net.ssl.SSLContext
-import javax.net.ssl.X509TrustManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -18,6 +12,12 @@ import voice.core.extension.engine.ExtensionSourceMeta
 import voice.core.extension.engine.JsSourceEngine
 import voice.core.extension.engine.OkHttpSandboxHttp
 import voice.core.logging.api.Logger
+import java.io.File
+import java.security.SecureRandom
+import java.security.cert.X509Certificate
+import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLContext
+import javax.net.ssl.X509TrustManager
 
 /**
  * Creates and caches one [JsSourceEngine] per enabled extension source.
@@ -27,9 +27,7 @@ import voice.core.logging.api.Logger
  */
 @Inject
 @SingleIn(AppScope::class)
-public class ExtensionEngineProvider(
-  private val manager: ExtensionManager,
-) {
+public class ExtensionEngineProvider(private val manager: ExtensionManager) {
 
   private val mutex = Mutex()
   private val engines = HashMap<String, CachedEngine>()
@@ -85,8 +83,14 @@ public class ExtensionEngineProvider(
       .writeTimeout(30, TimeUnit.SECONDS)
     if (allowInsecure) {
       val trustManager = object : X509TrustManager {
-        override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
-        override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {}
+        override fun checkClientTrusted(
+          chain: Array<X509Certificate>,
+          authType: String,
+        ) {}
+        override fun checkServerTrusted(
+          chain: Array<X509Certificate>,
+          authType: String,
+        ) {}
         override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
       }
       val context = SSLContext.getInstance("TLS")

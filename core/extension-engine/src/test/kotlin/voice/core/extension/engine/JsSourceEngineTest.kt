@@ -79,7 +79,10 @@ class JsSourceEngineTest {
     assertEquals(323, search[0].trackCount)
     assertEquals("keep-me", search[0].extra["customField"]?.toString()?.removeSurrounding("\""))
     val searchRequest = server.takeRequest()
-    assertEquals("/search?key=%E6%96%97%E7%BD%97&page=1", searchRequest.url.encodedQuery.let { "/search?$it" }.substringBefore("?") + "?" + searchRequest.url.encodedQuery)
+    assertEquals(
+      "/search?key=%E6%96%97%E7%BD%97&page=1",
+      searchRequest.url.encodedQuery.let { "/search?$it" }.substringBefore("?") + "?" + searchRequest.url.encodedQuery,
+    )
     assertEquals("yes", searchRequest.headers["x-demo"])
 
     server.enqueue(MockResponse.Builder().body("""[{"id":1,"name":"第一集"},{"id":2,"name":"第二集"}]""").build())

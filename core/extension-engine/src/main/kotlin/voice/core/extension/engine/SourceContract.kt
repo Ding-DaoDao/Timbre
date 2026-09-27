@@ -66,7 +66,7 @@ public object SourceContract {
         title = title,
         order = item.intField(listOf("order", "index", "episode_num"), index, optional = true) ?: (index + 1),
         durationSeconds =
-          item.longField(listOf("duration", "durationSeconds"), index, optional = true) ?: 0L,
+        item.longField(listOf("duration", "durationSeconds"), index, optional = true) ?: 0L,
         extra = item,
       )
     }

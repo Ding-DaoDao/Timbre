@@ -14,7 +14,10 @@ internal object XChaCha20 {
   private val CONSTANTS = intArrayOf(0x61707865, 0x3320646e, 0x79622d32, 0x6b206574)
 
   /** Derives a 32-byte subkey from a 32-byte key and a 16-byte nonce. */
-  internal fun hChaCha20(key: ByteArray, nonce: ByteArray): ByteArray {
+  internal fun hChaCha20(
+    key: ByteArray,
+    nonce: ByteArray,
+  ): ByteArray {
     require(key.size == 32) { "HChaCha20 key must be 32 bytes" }
     require(nonce.size == 16) { "HChaCha20 nonce must be 16 bytes" }
     val state = IntArray(16)
@@ -89,7 +92,13 @@ internal object XChaCha20 {
     return cipher.doFinal(data)
   }
 
-  private fun quarterRound(x: IntArray, a: Int, b: Int, c: Int, d: Int) {
+  private fun quarterRound(
+    x: IntArray,
+    a: Int,
+    b: Int,
+    c: Int,
+    d: Int,
+  ) {
     x[a] += x[b]
     x[d] = x[d] xor x[a]
     x[d] = (x[d] shl 16) or (x[d] ushr 16)
@@ -104,13 +113,19 @@ internal object XChaCha20 {
     x[b] = (x[b] shl 7) or (x[b] ushr 25)
   }
 
-  private fun littleEndianWord(bytes: ByteArray, offset: Int): Int =
-    (bytes[offset].toInt() and 0xff) or
-      ((bytes[offset + 1].toInt() and 0xff) shl 8) or
-      ((bytes[offset + 2].toInt() and 0xff) shl 16) or
-      ((bytes[offset + 3].toInt() and 0xff) shl 24)
+  private fun littleEndianWord(
+    bytes: ByteArray,
+    offset: Int,
+  ): Int = (bytes[offset].toInt() and 0xff) or
+    ((bytes[offset + 1].toInt() and 0xff) shl 8) or
+    ((bytes[offset + 2].toInt() and 0xff) shl 16) or
+    ((bytes[offset + 3].toInt() and 0xff) shl 24)
 
-  private fun putLittleEndianWord(bytes: ByteArray, offset: Int, value: Int) {
+  private fun putLittleEndianWord(
+    bytes: ByteArray,
+    offset: Int,
+    value: Int,
+  ) {
     bytes[offset] = value.toByte()
     bytes[offset + 1] = (value ushr 8).toByte()
     bytes[offset + 2] = (value ushr 16).toByte()

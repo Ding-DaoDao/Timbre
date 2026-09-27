@@ -172,8 +172,7 @@ class ExtensionsViewModel(
     }
   }
 
-  private fun Exception.userMessage(): String =
-    (this as? ExtensionInstallException)?.message ?: "导入失败：${message ?: "未知错误"}"
+  private fun Exception.userMessage(): String = (this as? ExtensionInstallException)?.message ?: "导入失败：${message ?: "未知错误"}"
 
   private fun InstalledExtensionPackage.toUi(): ExtensionPackageUi = ExtensionPackageUi(
     manifestId = manifest.id,

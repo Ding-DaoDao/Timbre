@@ -37,13 +37,15 @@ internal object Sm4 {
     (0..3).sumOf { j -> (((4 * i + j) * 7) % 256) shl (8 * (3 - j)) }
   }
 
-  private fun rotl(x: Int, n: Int): Int = (x shl n) or (x ushr (32 - n))
+  private fun rotl(
+    x: Int,
+    n: Int,
+  ): Int = (x shl n) or (x ushr (32 - n))
 
-  private fun tau(a: Int): Int =
-    (SBOX[(a ushr 24) and 0xff] shl 24) or
-      (SBOX[(a ushr 16) and 0xff] shl 16) or
-      (SBOX[(a ushr 8) and 0xff] shl 8) or
-      SBOX[a and 0xff]
+  private fun tau(a: Int): Int = (SBOX[(a ushr 24) and 0xff] shl 24) or
+    (SBOX[(a ushr 16) and 0xff] shl 16) or
+    (SBOX[(a ushr 8) and 0xff] shl 8) or
+    SBOX[a and 0xff]
 
   private fun tEnc(a: Int): Int {
     val b = tau(a)
@@ -55,13 +57,19 @@ internal object Sm4 {
     return b xor rotl(b, 13) xor rotl(b, 23)
   }
 
-  private fun word(block: ByteArray, offset: Int): Int =
-    ((block[offset].toInt() and 0xff) shl 24) or
-      ((block[offset + 1].toInt() and 0xff) shl 16) or
-      ((block[offset + 2].toInt() and 0xff) shl 8) or
-      (block[offset + 3].toInt() and 0xff)
+  private fun word(
+    block: ByteArray,
+    offset: Int,
+  ): Int = ((block[offset].toInt() and 0xff) shl 24) or
+    ((block[offset + 1].toInt() and 0xff) shl 16) or
+    ((block[offset + 2].toInt() and 0xff) shl 8) or
+    (block[offset + 3].toInt() and 0xff)
 
-  private fun putWord(block: ByteArray, offset: Int, value: Int) {
+  private fun putWord(
+    block: ByteArray,
+    offset: Int,
+    value: Int,
+  ) {
     block[offset] = (value ushr 24).toByte()
     block[offset + 1] = (value ushr 16).toByte()
     block[offset + 2] = (value ushr 8).toByte()
@@ -107,7 +115,10 @@ internal object Sm4 {
     putWord(outBlock, outOffset + 12, x0)
   }
 
-  internal fun encrypt(data: ByteArray, key: ByteArray): ByteArray {
+  internal fun encrypt(
+    data: ByteArray,
+    key: ByteArray,
+  ): ByteArray {
     val roundKeys = expandKey(key)
     val padded = padPkcs7(data)
     val out = ByteArray(padded.size)
@@ -117,7 +128,10 @@ internal object Sm4 {
     return out
   }
 
-  internal fun decrypt(data: ByteArray, key: ByteArray): ByteArray {
+  internal fun decrypt(
+    data: ByteArray,
+    key: ByteArray,
+  ): ByteArray {
     val roundKeys = expandKey(key).reversedArray()
     require(data.size % 16 == 0 && data.isNotEmpty()) { "SM4 ciphertext must be a positive multiple of 16 bytes" }
     val out = ByteArray(data.size)

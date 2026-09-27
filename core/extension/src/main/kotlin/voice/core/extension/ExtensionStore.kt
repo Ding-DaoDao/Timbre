@@ -30,8 +30,7 @@ public data class InstalledExtensionPackage(
 
   public fun isSourceEnabled(sourceId: String): Boolean = sourceEnabled[sourceId] ?: true
 
-  public fun enabledSources(): List<ExtensionSourceMeta> =
-    manifest.sources.filter { isSourceEnabled(it.id) }
+  public fun enabledSources(): List<ExtensionSourceMeta> = manifest.sources.filter { isSourceEnabled(it.id) }
 }
 
 @Inject

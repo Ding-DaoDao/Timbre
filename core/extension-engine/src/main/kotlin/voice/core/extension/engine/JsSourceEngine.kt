@@ -4,9 +4,6 @@ import com.dokar.quickjs.ExperimentalQuickJsApi
 import com.dokar.quickjs.QuickJs
 import com.dokar.quickjs.binding.asyncFunction
 import com.dokar.quickjs.binding.function
-import java.io.Closeable
-import java.util.Base64
-import java.util.concurrent.Executors
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -18,6 +15,9 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.serializer
 import voice.core.extension.engine.crypto.CryptoOps
+import java.io.Closeable
+import java.util.Base64
+import java.util.concurrent.Executors
 
 /**
  * One QuickJS sandbox running one source script. All cross-boundary values
@@ -163,19 +163,16 @@ public class JsSourceEngine private constructor(
 
     private fun unb64(value: String): ByteArray = Base64.getDecoder().decode(value)
 
-    private fun rootMessage(e: Throwable): String =
-      generateSequence(e as Throwable?) { it.cause }
-        .filterNotNull()
-        .lastOrNull { it.message.isNullOrBlank().not() }
-        ?.message
-        ?: e.toString()
+    private fun rootMessage(e: Throwable): String = generateSequence(e as Throwable?) { it.cause }
+      .filterNotNull()
+      .lastOrNull { it.message.isNullOrBlank().not() }
+      ?.message
+      ?: e.toString()
 
-    private fun Array<Any?>.string(index: Int): String =
-      (getOrNull(index) as? String)
-        ?: throw IllegalArgumentException("第${index + 1}个参数必须是字符串")
+    private fun Array<Any?>.string(index: Int): String = (getOrNull(index) as? String)
+      ?: throw IllegalArgumentException("第${index + 1}个参数必须是字符串")
 
-    private fun Array<Any?>.int(index: Int): Int =
-      (getOrNull(index) as? Number)?.toInt()
-        ?: throw IllegalArgumentException("第${index + 1}个参数必须是数字")
+    private fun Array<Any?>.int(index: Int): Int = (getOrNull(index) as? Number)?.toInt()
+      ?: throw IllegalArgumentException("第${index + 1}个参数必须是数字")
   }
 }

@@ -1,6 +1,5 @@
 package voice.core.extension.engine
 
-import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -15,6 +14,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.util.concurrent.TimeUnit
 
 /**
  * The http bridge source scripts use. Options and the response cross the JS
@@ -34,9 +34,7 @@ public fun interface SandboxHttp {
 private const val MAX_RESPONSE_BYTES = 10L * 1024 * 1024
 private const val DEFAULT_TIMEOUT_MS = 30_000L
 
-public class OkHttpSandboxHttp(
-  baseClient: OkHttpClient,
-) : SandboxHttp {
+public class OkHttpSandboxHttp(baseClient: OkHttpClient) : SandboxHttp {
 
   private val baseClient = baseClient.newBuilder().build()
 

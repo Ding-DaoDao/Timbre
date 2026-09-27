@@ -1,9 +1,9 @@
 package voice.core.extension.engine
 
-import java.io.ByteArrayInputStream
-import java.util.zip.ZipInputStream
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import java.io.ByteArrayInputStream
+import java.util.zip.ZipInputStream
 
 /** One source (interface) declared by a .jdr package manifest. */
 @Serializable

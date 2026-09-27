@@ -2,13 +2,13 @@ package voice.core.extension
 
 import io.mockk.coEvery
 import io.mockk.mockk
+import kotlinx.coroutines.test.runTest
+import voice.core.extension.engine.JsSourceEngine
+import voice.core.online.OnlineSourceInfo
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import kotlinx.coroutines.test.runTest
-import voice.core.extension.engine.JsSourceEngine
-import voice.core.online.OnlineSourceInfo
 
 class ExtensionSourceBackendTest {
 
@@ -37,7 +37,10 @@ class ExtensionSourceBackendTest {
     }
   }
 
-  private fun backendWith(responses: Map<String, String>, recorded: RecordedEngine): ExtensionSourceBackend {
+  private fun backendWith(
+    responses: Map<String, String>,
+    recorded: RecordedEngine,
+  ): ExtensionSourceBackend {
     val engineProvider = mockk<ExtensionEngineProvider>()
     coEvery { engineProvider.useEngine<Any>(any(), any()) } coAnswers {
       secondArg<suspend (JsSourceEngine) -> Any>().invoke(recorded.engine())

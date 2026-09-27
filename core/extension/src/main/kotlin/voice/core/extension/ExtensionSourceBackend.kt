@@ -1,6 +1,5 @@
 package voice.core.extension
 
-import java.util.LinkedHashMap
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
@@ -12,13 +11,13 @@ import voice.core.online.ExtensionOnlineSource
 import voice.core.online.OnlineChapter
 import voice.core.online.OnlineSearchResult
 import voice.core.online.OnlineSourceInfo
+import java.util.LinkedHashMap
 
 /** sourceId/bookId 级别的透传字段缓存；容量有限，防止长会话内存无限增长。 */
 private class BoundedCache(private val maxSize: Int = 200) {
 
   private val map = object : LinkedHashMap<String, JsonObject>(16, 0.75f, true) {
-    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, JsonObject>): Boolean =
-      size > maxSize
+    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, JsonObject>): Boolean = size > maxSize
   }
 
   @Synchronized
@@ -53,8 +52,7 @@ public class ExtensionSourceBackend(
 
   override fun handles(source: String): Boolean = source.startsWith(ExtensionEngineProvider.SOURCE_PREFIX)
 
-  override suspend fun hasEnabledSources(): Boolean =
-    manager.installed().any { it.enabledSources().isNotEmpty() }
+  override suspend fun hasEnabledSources(): Boolean = manager.installed().any { it.enabledSources().isNotEmpty() }
 
   override suspend fun enabledSourceInfos(): List<OnlineSourceInfo> {
     return manager.installed().flatMap { pkg ->
@@ -138,8 +136,7 @@ public class ExtensionSourceBackend(
     return SourceContract.parseAudioUrl(json)
   }
 
-  private fun sourceId(source: String): String =
-    source.removePrefix(ExtensionEngineProvider.SOURCE_PREFIX)
+  private fun sourceId(source: String): String = source.removePrefix(ExtensionEngineProvider.SOURCE_PREFIX)
 
   private fun params(
     base: LinkedHashMap<String, Any>,

@@ -1,6 +1,9 @@
 package voice.core.extension
 
 import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.test.runTest
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import java.io.ByteArrayOutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
@@ -9,9 +12,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import kotlinx.coroutines.test.runTest
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
 class ExtensionManagerTest {
@@ -31,8 +31,11 @@ class ExtensionManagerTest {
     return out.toByteArray()
   }
 
-  private fun manifest(id: String, sourceId: String, version: String = "1.0.0") =
-    """{"id":"$id","name":"包$id","version":"$version","sources":
+  private fun manifest(
+    id: String,
+    sourceId: String,
+    version: String = "1.0.0",
+  ) = """{"id":"$id","name":"包$id","version":"$version","sources":
        [{"id":"$sourceId","name":"源$sourceId","script":"s.js"}]}"""
 
   private val script = """

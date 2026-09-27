@@ -2,11 +2,9 @@ package voice.core.extension
 
 import android.app.Application
 import androidx.datastore.core.DataStore
+import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
-import dev.zacsweers.metro.AppScope
-import java.io.File
-import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
@@ -17,6 +15,8 @@ import okhttp3.Request
 import voice.core.extension.engine.ExtensionManifest
 import voice.core.extension.engine.JdrArchive
 import voice.core.extension.engine.JdrFormatException
+import java.io.File
+import java.util.concurrent.TimeUnit
 
 /** Thrown when installing a package fails with a user presentable reason. */
 public class ExtensionInstallException public constructor(
@@ -52,8 +52,7 @@ public class ExtensionManager(
 
   public fun packagesStore(): DataStore<List<InstalledExtensionPackage>> = packagesStore
 
-  public fun packageDir(manifestId: String): File =
-    File(application.filesDir, "extensions/$manifestId")
+  public fun packageDir(manifestId: String): File = File(application.filesDir, "extensions/$manifestId")
 
   public suspend fun installed(): List<InstalledExtensionPackage> = packagesStore.data.first()
 
@@ -167,13 +166,13 @@ public class ExtensionManager(
   ) {
     mutationMutex.withLock {
       packagesStore.updateData { packages ->
-      packages.map { pkg ->
-        if (pkg.manifest.sources.any { it.id == sourceId }) {
-          pkg.copy(sourceEnabled = pkg.sourceEnabled + (sourceId to enabled))
-        } else {
-          pkg
+        packages.map { pkg ->
+          if (pkg.manifest.sources.any { it.id == sourceId }) {
+            pkg.copy(sourceEnabled = pkg.sourceEnabled + (sourceId to enabled))
+          } else {
+            pkg
+          }
         }
-      }
       }
     }
   }
