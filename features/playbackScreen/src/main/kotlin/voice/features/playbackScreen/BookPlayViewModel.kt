@@ -148,11 +148,17 @@ class BookPlayViewModel(
     var baseBook by remember(bookId) { mutableStateOf<Book?>(null) }
     LaunchedEffect(bookId, durationsVersion) {
       // the book may need a moment when it comes from the search stash; the
-      // measured durations arrive right after the first stream open
+      // measured durations arrive right after the first stream open, so the
+      // book is refetched on every durationsVersion bump and the total times
+      // live-update while the chapter is playing
       var attempts = 0
-      while (baseBook == null && attempts < 10) {
-        baseBook = onlinePlaybackCatalog.book(bookId)
-        if (baseBook == null) delay(500)
+      while (attempts < 10) {
+        val book = onlinePlaybackCatalog.book(bookId)
+        if (book != null) {
+          baseBook = book
+          break
+        }
+        delay(500)
         attempts++
       }
     }
