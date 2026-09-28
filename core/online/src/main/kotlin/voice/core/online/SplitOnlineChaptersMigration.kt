@@ -12,9 +12,7 @@ import voice.core.logging.api.Logger
  * A failing chapter write returns the data unchanged instead of stripping the
  * lists: DataStore re-runs the migration on the next start and nothing is lost.
  */
-internal class SplitOnlineChaptersMigration(
-  private val chapterStore: OnlineChapterStore,
-) : DataMigration<List<OnlineBook>> {
+internal class SplitOnlineChaptersMigration(private val chapterStore: OnlineChapterStore) : DataMigration<List<OnlineBook>> {
 
   override suspend fun shouldMigrate(currentData: List<OnlineBook>): Boolean {
     return currentData.any { it.chapters.isNotEmpty() }
