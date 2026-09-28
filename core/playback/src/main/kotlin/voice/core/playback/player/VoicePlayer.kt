@@ -1,5 +1,6 @@
 package voice.core.playback.player
 
+import android.net.Uri
 import androidx.datastore.core.DataStore
 import androidx.media3.common.C
 import androidx.media3.common.ForwardingPlayer
@@ -30,6 +31,7 @@ import voice.core.online.OnlinePlaybackCatalog
 import voice.core.online.OnlineUri
 import voice.core.playback.misc.Decibel
 import voice.core.playback.misc.VolumeGain
+import voice.core.playback.session.ImageFileProvider
 import voice.core.playback.session.MediaId
 import voice.core.playback.session.MediaItemProvider
 import voice.core.playback.session.bookId
@@ -38,6 +40,7 @@ import voice.core.playback.session.positionInMediaItem
 import voice.core.playback.session.toMediaIdOrNull
 import voice.core.sleeptimer.SleepTimer
 import voice.core.sleeptimer.SleepTimerState
+import java.io.File
 import java.time.Instant
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.ZERO
@@ -59,6 +62,7 @@ class VoicePlayer(
   private val autoRewindAmountStore: DataStore<Int>,
   private val mediaItemProvider: MediaItemProvider,
   private val onlinePlaybackCatalog: OnlinePlaybackCatalog,
+  private val imageFileProvider: ImageFileProvider,
   private val scope: CoroutineScope,
   private val volumeGain: VolumeGain,
   private val sleepTimer: SleepTimer,
@@ -546,7 +550,7 @@ class VoicePlayer(
       async {
         onlinePlaybackCatalog.onlineCover(book.id)
           ?.takeIf { it.isNotBlank() }
-          ?.let(android.net.Uri::parse)
+          ?.toSessionArtworkUri()
       }
     } else {
       null
@@ -597,7 +601,7 @@ class VoicePlayer(
       }
       val cover = onlinePlaybackCatalog.onlineCover(prepared.book.id)
         ?.takeIf { it.isNotBlank() }
-        ?.let(android.net.Uri::parse)
+        ?.toSessionArtworkUri()
         ?: return@withContext raw
       raw.map { item ->
         item.buildUpon()
@@ -630,6 +634,18 @@ class VoicePlayer(
       "Expanded playlist of ${prepared.book.id}: " +
         "prefix=$prefixSize +${missing.size} → ${already + missing.size}",
     )
+  }
+
+  /**
+   * The media session artwork is loaded by the system (lock screen, wear,
+   * auto): a local cover file must be handed out as a granted content:// uri,
+   * a remote url passes through unchanged.
+   */
+  private fun String.toSessionArtworkUri(): Uri {
+    val uri = Uri.parse(this)
+    if (uri.scheme != "file") return uri
+    val file = uri.path?.let(::File) ?: return uri
+    return imageFileProvider.uri(file)
   }
 
   override fun setPlaybackSpeed(speed: Float) {

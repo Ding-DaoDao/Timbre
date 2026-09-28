@@ -121,6 +121,7 @@ class VoicePlayerTest {
       every { isOnlineBookId(any()) } returns false
       coEvery { onlineCover(any()) } returns null
     },
+    imageFileProvider = mockk(),
     volumeGain = mockk(relaxed = true),
     sleepTimer = sleepTimer,
     analytics = mockk(relaxed = true),
