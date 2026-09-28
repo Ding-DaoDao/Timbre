@@ -2,18 +2,31 @@ package voice.core.online
 
 import androidx.datastore.core.DataStore
 import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
+import mockwebserver3.MockResponse
+import mockwebserver3.MockWebServer
+import okhttp3.OkHttpClient
+import voice.core.common.DispatcherProvider
 import kotlin.io.path.createTempDirectory
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeSource
 
 class OnlineSourceServiceTest {
 
+  private val testDispatcher = UnconfinedTestDispatcher()
+  private val dispatcherProvider = DispatcherProvider(testDispatcher, testDispatcher, testDispatcher)
   private val chapterStore = OnlineChapterStore(createTempDirectory("online-chapters").toFile())
+  private val coverStore = OnlineCoverStore(createTempDirectory("online-covers").toFile())
   private val booksStore = FakeBooksStore()
   private val service = OnlineSourceService(
     FakeStore(false),
@@ -22,7 +35,10 @@ class OnlineSourceServiceTest {
     FakeStore(""),
     booksStore,
     chapterStore,
+    coverStore,
+    OkHttpClient(),
     mockk(),
+    dispatcherProvider,
     emptySet(),
   )
 
@@ -72,6 +88,51 @@ class OnlineSourceServiceTest {
   }
 
   @Test
+  fun `addToShelf downloads the cover and rewrites it to a local file`() = runTest {
+    val server = MockWebServer()
+    server.start()
+    val coverBytes = "fake-png-bytes".repeat(16)
+    server.enqueue(MockResponse.Builder().code(200).body(coverBytes).build())
+
+    val service = OnlineSourceService(
+      FakeStore(false),
+      FakeStore(""),
+      FakeStore(""),
+      FakeStore(""),
+      booksStore,
+      chapterStore,
+      coverStore,
+      OkHttpClient(),
+      mockk(),
+      dispatcherProvider,
+      emptySet(),
+    )
+    service.addToShelf(
+      OnlineBook(
+        source = "A",
+        bookId = "b1",
+        title = "T",
+        cover = server.url("/cover.jpg").toString(),
+      ),
+    )
+
+    // the download runs on the background cover scope: wait wall-clock
+    withContext(Dispatchers.IO) {
+      val mark = TimeSource.Monotonic.markNow()
+      while (booksStore.data.first().singleOrNull()?.cover?.startsWith("file:") != true) {
+        check(mark.elapsedNow() < 5_000.milliseconds) { "the cover was never rewritten to a local file" }
+        Thread.sleep(10)
+      }
+    }
+
+    val stored = booksStore.data.first().single()
+    val file = assertNotNull(coverStore.file("A::b1"))
+    assertEquals(file.toURI().toString(), stored.cover)
+    assertEquals(coverBytes, file.readText())
+    server.close()
+  }
+
+  @Test
   fun `extension sources work without any server configuration`() = runTest {
     val backend = FakeExtensionBackend()
     val service = OnlineSourceService(
@@ -81,7 +142,10 @@ class OnlineSourceServiceTest {
       FakeStore(""),
       FakeBooksStore(),
       chapterStore,
+      coverStore,
+      OkHttpClient(),
       mockk(relaxed = false),
+      dispatcherProvider,
       setOf(backend),
     )
 

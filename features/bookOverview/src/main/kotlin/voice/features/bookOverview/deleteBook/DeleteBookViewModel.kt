@@ -20,6 +20,7 @@ import voice.core.online.OnlineBook
 import voice.core.online.OnlineBookCacheManager
 import voice.core.online.OnlineChapterFileCache
 import voice.core.online.OnlineChapterStore
+import voice.core.online.OnlineCoverStore
 import voice.core.online.OnlineSourceBooksStore
 import voice.core.online.OnlineUri
 import voice.core.scanner.MediaScanTrigger
@@ -36,6 +37,7 @@ class DeleteBookViewModel(
   private val bookRepository: BookRepository,
   @OnlineSourceBooksStore private val onlineBooksStore: DataStore<List<OnlineBook>>,
   private val onlineChapterStore: OnlineChapterStore,
+  private val onlineCoverStore: OnlineCoverStore,
   private val cacheManager: OnlineBookCacheManager,
   private val fileCache: OnlineChapterFileCache,
   private val dispatcherProvider: DispatcherProvider,
@@ -116,6 +118,7 @@ class DeleteBookViewModel(
           // re-added book starts from the source instead of a stale local list
           OnlineUri.parseBookUri(state.id.value)?.let { ref ->
             onlineChapterStore.remove(ref.key)
+            onlineCoverStore.remove(ref.key)
           }
           onlineBooksStore.updateData { books ->
             books.filterNot { book ->

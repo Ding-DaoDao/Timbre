@@ -110,6 +110,12 @@ public interface OnlineSourceGraph {
 
   @Provides
   @SingleIn(AppScope::class)
+  public fun onlineCoverStore(application: Application): OnlineCoverStore {
+    return OnlineCoverStore(File(application.filesDir, OnlineCoverStore.COVERS_DIR))
+  }
+
+  @Provides
+  @SingleIn(AppScope::class)
   @OnlineCacheJobsStore
   public fun onlineCacheJobs(factory: OnlineSourceStoreFactory): DataStore<List<OnlineCacheJob>> {
     return factory.create(

@@ -14,7 +14,6 @@ import kotlinx.serialization.json.decodeFromStream
 import kotlinx.serialization.json.encodeToStream
 import voice.core.logging.api.Logger
 import java.io.File
-import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 
 /** The persisted form of one chapter list: the key travels inside the file, so
@@ -193,7 +192,7 @@ public class OnlineChapterStore(private val baseDir: File) {
       .getOrNull()
   }
 
-  private fun file(key: String): File = File(baseDir, hash(key) + ".json")
+  private fun file(key: String): File = File(baseDir, hashedFileName(key) + ".json")
 
   private fun publish() {
     _loaded.value = cache.toMap()
@@ -203,11 +202,5 @@ public class OnlineChapterStore(private val baseDir: File) {
 
     /** Distinct from [OnlineChapterFileCache.CACHE_DIR], which holds audio files. */
     public const val CHAPTER_LISTS_DIR: String = "online_chapter_lists"
-
-    /** Book keys are source controlled and can contain any character: hash them. */
-    private fun hash(key: String): String {
-      val digest = MessageDigest.getInstance("SHA-256").digest(key.toByteArray(Charsets.UTF_8))
-      return digest.joinToString(separator = "") { byte -> "%02x".format(byte) }
-    }
   }
 }

@@ -4,11 +4,21 @@ import androidx.datastore.core.DataStore
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import voice.core.common.DispatcherProvider
 import voice.core.logging.api.Logger
+import java.io.ByteArrayOutputStream
+import java.io.File
 
 /**
  * Facade over [OnlineSourceClient] that owns the configuration stores and the
@@ -25,10 +35,15 @@ public class OnlineSourceService internal constructor(
   @OnlineSourceTokenStore private val tokenStore: DataStore<String>,
   @OnlineSourceBooksStore private val booksStore: DataStore<List<OnlineBook>>,
   private val chapterStore: OnlineChapterStore,
+  private val coverStore: OnlineCoverStore,
+  @OnlineSourceStreamingClient private val httpClient: OkHttpClient,
   private val client: OnlineSourceClient,
+  dispatcherProvider: DispatcherProvider,
   private val extensionSources: Set<@JvmSuppressWildcards ExtensionOnlineSource>,
 ) {
 
+  /** Serial cover downloads: one image at a time, gentler on slow sources. */
+  private val coverScope = CoroutineScope(SupervisorJob() + dispatcherProvider.io)
   private val loginMutex = Mutex()
   private var cachedToken: String? = null
   private val chaptersCache = object : LinkedHashMap<String, List<OnlineChapter>>(0, 0.75f, true) {
@@ -195,6 +210,11 @@ public class OnlineSourceService internal constructor(
       listOf(merged.copy(chapters = emptyList(), addedAt = System.currentTimeMillis())) +
         current.filterNot { it.key == book.key }
     }
+    if (book.cover.startsWith("http")) {
+      coverScope.launch {
+        rewriteCoverToLocalFile(book.key, book.cover)
+      }
+    }
   }
 
   /**
@@ -224,6 +244,68 @@ public class OnlineSourceService internal constructor(
       current.filterNot { it.key == key }
     }
     chapterStore.remove(key)
+    coverStore.remove(key)
+  }
+
+  /**
+   * Downloads covers for shelf records that still point at a remote url. Runs
+   * at app start, one cover at a time; a book whose cover cannot be fetched
+   * right now simply keeps its remote url and is retried next start.
+   */
+  public suspend fun backfillCovers() {
+    val books = runCatching { booksStore.data.first() }.getOrDefault(emptyList())
+    for (book in books) {
+      if (!book.cover.startsWith("http")) continue
+      if (coverStore.file(book.key) != null) continue
+      rewriteCoverToLocalFile(book.key, book.cover)
+    }
+  }
+
+  /**
+   * Downloads [url] and rewrites the shelf record's cover to the local file,
+   * so covers load from disk instead of the network whenever Coil's shared
+   * image cache has evicted them. A failure keeps the remote url: the cover
+   * then loads as before and the next start retries via [backfillCovers].
+   */
+  private suspend fun rewriteCoverToLocalFile(
+    key: String,
+    url: String,
+  ) {
+    val bytes = runCatching { downloadCoverBytes(url) }
+      .onFailure { Logger.w("Could not download the cover of $key: $it") }
+      .getOrNull()
+      ?: return
+    val stored = runCatching { coverStore.write(key, bytes) }
+      .onFailure { Logger.w("Could not store the cover of $key: $it") }
+      .getOrNull()
+      ?: return
+    runCatching {
+      booksStore.updateData { books ->
+        books.map { book ->
+          if (book.key == key) book.copy(cover = stored.toURI().toString()) else book
+        }
+      }
+    }.onFailure { Logger.w("Could not rewrite the cover of $key to the local file: $it") }
+  }
+
+  private suspend fun downloadCoverBytes(url: String): ByteArray? {
+    return withContext(Dispatchers.IO) {
+      httpClient.newCall(Request.Builder().url(url).build()).execute().use { response ->
+        if (!response.isSuccessful) return@withContext null
+        val input = response.body.byteStream()
+        val out = ByteArrayOutputStream()
+        val chunk = ByteArray(8_192)
+        var total = 0
+        while (true) {
+          val read = input.read(chunk)
+          if (read < 0) break
+          total += read
+          if (total > MAX_COVER_BYTES) return@withContext null
+          out.write(chunk, 0, read)
+        }
+        out.toByteArray()
+      }
+    }
   }
 
   public suspend fun shelfBook(key: String): OnlineBook? {
@@ -312,5 +394,11 @@ public class OnlineSourceService internal constructor(
       cachedToken = null
       block(login())
     }
+  }
+
+  private companion object {
+
+    /** Covers are small; anything bigger is not a cover (or a hostile source). */
+    private const val MAX_COVER_BYTES = 10 * 1024 * 1024
   }
 }
