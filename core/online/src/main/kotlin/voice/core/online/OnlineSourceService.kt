@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import voice.core.logging.api.Logger
 
 /**
  * Facade over [OnlineSourceClient] that owns the configuration stores and the
@@ -168,8 +169,14 @@ public class OnlineSourceService internal constructor(
    */
   public suspend fun addToShelf(book: OnlineBook) {
     if (book.chapters.isNotEmpty()) {
-      val storedChapters = runCatching { chapterStore.chapters(book.key) }.getOrDefault(emptyList())
-      chapterStore.put(book.key, mergeChapterDurations(storedChapters, book.chapters))
+      // merged against the freshest stored list under the store lock; a disk
+      // failure must not abort the shelf add - the chapters then simply stay
+      // as they were and playback falls back to the source
+      runCatching {
+        chapterStore.update(book.key) { stored ->
+          mergeChapterDurations(stored, book.chapters)
+        }
+      }.onFailure { Logger.w("Failed to store the chapter list of ${book.key}: $it") }
     }
     booksStore.updateData { current ->
       val existing = current.firstOrNull { it.key == book.key }

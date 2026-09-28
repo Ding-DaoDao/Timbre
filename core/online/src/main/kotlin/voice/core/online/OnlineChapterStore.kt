@@ -3,6 +3,8 @@ package voice.core.online
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
@@ -37,10 +39,18 @@ private data class StoredOnlineChapters(
  * The file name is a hash of the book key, so any character a source uses in
  * an id is safe on disk. Reads populate an in-memory cache; the [loadedChapters]
  * flow mirrors it so the shelf can merge the lists in as they arrive.
+ *
+ * Writers serialize through one mutex: [update] and [updateChapterDuration]
+ * are read-modify-write cycles that must not lose a concurrent measurement,
+ * and two simultaneous writes to the same key would otherwise trample the
+ * shared temp file. The mutex is store-wide (not per key) on purpose - the
+ * files are small, so a few milliseconds of serialization beat lock churn.
  */
 public class OnlineChapterStore(private val baseDir: File) {
 
   private val json = Json { ignoreUnknownKeys = true }
+
+  private val mutex = Mutex()
 
   /** Chapter lists read into memory so far, keyed by [OnlineBook.key]. */
   private val cache = ConcurrentHashMap<String, List<OnlineChapter>>()
@@ -67,8 +77,85 @@ public class OnlineChapterStore(private val baseDir: File) {
   }
 
   /** Stores [chapters] for [key], replacing any previous list. */
-  @OptIn(ExperimentalSerializationApi::class)
   public suspend fun put(
+    key: String,
+    chapters: List<OnlineChapter>,
+  ) {
+    mutex.withLock {
+      putLocked(key, chapters)
+    }
+  }
+
+  /**
+   * Atomic read-modify-write of the stored list of [key]: [transform] runs
+   * against the freshest list under the store lock, so a measured duration
+   * landing while a refresh or a re-add merges cannot be lost. Returns the
+   * list that is stored after the call.
+   */
+  public suspend fun update(
+    key: String,
+    transform: (List<OnlineChapter>) -> List<OnlineChapter>,
+  ): List<OnlineChapter> {
+    return mutex.withLock {
+      val current = chapters(key)
+      val next = transform(current)
+      if (next != current) {
+        putLocked(key, next)
+      }
+      next
+    }
+  }
+
+  /** Removes the stored list of [key]; a no-op when there is none. */
+  public suspend fun remove(key: String) {
+    mutex.withLock {
+      cache.remove(key)
+      publish()
+      withContext(Dispatchers.IO) {
+        file(key).delete()
+      }
+    }
+  }
+
+  /** Persists a measured duration for one chapter; false when nothing changed. */
+  public suspend fun updateChapterDuration(
+    key: String,
+    chapterId: String,
+    durationSeconds: Int,
+  ): Boolean {
+    var changed = false
+    val _ = update(key) { current ->
+      current.map { chapter ->
+        if (chapter.id == chapterId && chapter.durationSeconds != durationSeconds) {
+          changed = true
+          chapter.copy(durationSeconds = durationSeconds)
+        } else {
+          chapter
+        }
+      }
+    }
+    return changed
+  }
+
+  /**
+   * Reads every stored chapter list into memory. Called once at app start, so
+   * the shelf merges the lists without a per-book file read while a card is
+   * already on screen. Keys already in memory keep their (fresher) value: a
+   * concurrent write must not be rolled back by the warm-up.
+   */
+  public suspend fun loadAll() {
+    val stored = withContext(Dispatchers.IO) {
+      baseDir.listFiles()
+        ?.filter { it.isFile && it.extension == "json" }
+        ?.mapNotNull { file -> read(file) }
+        .orEmpty()
+    }
+    stored.forEach { entry -> cache.putIfAbsent(entry.key, entry.chapters) }
+    publish()
+  }
+
+  @OptIn(ExperimentalSerializationApi::class)
+  private suspend fun putLocked(
     key: String,
     chapters: List<OnlineChapter>,
   ) {
@@ -91,51 +178,6 @@ public class OnlineChapterStore(private val baseDir: File) {
       }
     }
     cache[key] = chapters
-    publish()
-  }
-
-  /** Removes the stored list of [key]; a no-op when there is none. */
-  public suspend fun remove(key: String) {
-    cache.remove(key)
-    publish()
-    withContext(Dispatchers.IO) {
-      file(key).delete()
-    }
-  }
-
-  /** Persists a measured duration for one chapter; false when nothing changed. */
-  public suspend fun updateChapterDuration(
-    key: String,
-    chapterId: String,
-    durationSeconds: Int,
-  ): Boolean {
-    val current = chapters(key)
-    if (current.isEmpty()) return false
-    val updated = current.map { chapter ->
-      if (chapter.id == chapterId && chapter.durationSeconds != durationSeconds) {
-        chapter.copy(durationSeconds = durationSeconds)
-      } else {
-        chapter
-      }
-    }
-    if (updated == current) return false
-    put(key, updated)
-    return true
-  }
-
-  /**
-   * Reads every stored chapter list into memory. Called once at app start, so
-   * the shelf merges the lists without a per-book file read while a card is
-   * already on screen.
-   */
-  public suspend fun loadAll() {
-    val stored = withContext(Dispatchers.IO) {
-      baseDir.listFiles()
-        ?.filter { it.isFile && it.extension == "json" }
-        ?.mapNotNull { file -> read(file) }
-        .orEmpty()
-    }
-    stored.forEach { entry -> cache[entry.key] = entry.chapters }
     publish()
   }
 

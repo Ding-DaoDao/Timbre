@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import voice.core.data.Book
 import voice.core.data.BookContent
@@ -164,9 +165,21 @@ public class OnlinePlaybackCatalog(
     return OnlineUri.parseBookUri(bookId.value) != null
   }
 
-  /** The books on the online shelf. Emits on every position, chapter or settings change. */
+  /**
+   * The books on the online shelf, with their persisted chapter lists merged
+   * in from [chapterStore] (the shelf record itself stays metadata-only since
+   * the chapter split). Emits on every position, chapter or settings change.
+   */
   public fun shelfBooks(): Flow<List<OnlineBook>> {
-    return booksStore.data
+    return combine(booksStore.data, chapterStore.loadedChapters) { books, chapters ->
+      books.map { book ->
+        if (book.chapters.isEmpty()) {
+          chapters[book.key]?.let { stored -> book.copy(chapters = stored) } ?: book
+        } else {
+          book
+        }
+      }
+    }
   }
 
   /** Persists the intro skip of an online book (in milliseconds). */
@@ -227,25 +240,28 @@ public class OnlinePlaybackCatalog(
     if (fresh.isEmpty()) {
       return OnlineChapterRefreshResult.Failed(null)
     }
-    val storedChapters = runCatching { chapterStore.chapters(bookRef.key) }.getOrDefault(emptyList())
-    val oldById = storedChapters.associateBy { it.id }
-    val merged = fresh.map { chapter ->
-      val measured = measuredDurations[OnlineUri.build(bookRef.source, bookRef.bookId, chapter.id)]
-      val previous = oldById[chapter.id]
-      when {
-        measured != null && measured > 0L -> chapter.copy(durationSeconds = (measured / 1_000L).toInt())
-        previous != null && chapter.durationSeconds <= 0 && previous.durationSeconds > 0 ->
-          chapter.copy(durationSeconds = previous.durationSeconds)
-        else -> chapter
-      }
-    }
-    val added = fresh.count { it.id !in oldById }
+    var added = 0
     val freshIds = fresh.map { it.id }.toSet()
     // the chapter the user was listening to may have vanished from the
     // source: reset the stored position instead of pointing at nothing
     val positionSurvives = shelf.currentChapterId.isBlank() || shelf.currentChapterId in freshIds
+    // merged against the freshest stored list under the store lock, so a
+    // duration measured while the refresh ran is not rolled back
     runCatching {
-      chapterStore.put(bookRef.key, merged)
+      chapterStore.update(bookRef.key) { stored ->
+        val oldById = stored.associateBy { it.id }
+        added = fresh.count { it.id !in oldById }
+        fresh.map { chapter ->
+          val measured = measuredDurations[OnlineUri.build(bookRef.source, bookRef.bookId, chapter.id)]
+          val previous = oldById[chapter.id]
+          when {
+            measured != null && measured > 0L -> chapter.copy(durationSeconds = (measured / 1_000L).toInt())
+            previous != null && chapter.durationSeconds <= 0 && previous.durationSeconds > 0 ->
+              chapter.copy(durationSeconds = previous.durationSeconds)
+            else -> chapter
+          }
+        }
+      }
     }.onFailure {
       Logger.w("Failed to persist refreshed online chapters of ${bookRef.key}: $it")
       return OnlineChapterRefreshResult.Failed(it.message)

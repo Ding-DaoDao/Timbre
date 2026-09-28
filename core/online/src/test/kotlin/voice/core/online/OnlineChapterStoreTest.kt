@@ -1,5 +1,7 @@
 package voice.core.online
 
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlin.io.path.createTempDirectory
 import kotlin.test.Test
@@ -69,6 +71,21 @@ class OnlineChapterStoreTest {
     assertFalse(store.updateChapterDuration("A::unknown", "c2", 1750))
     // writing the same duration again reports no change
     assertFalse(store.updateChapterDuration("A::b1", "c2", 1750))
+  }
+
+  @Test
+  fun `concurrent duration updates do not lose each other`() = runTest {
+    store.put("A::b1", chapters)
+
+    // the probe-ahead measures one chapter while the player measures another
+    coroutineScope {
+      launch { val _ = store.updateChapterDuration("A::b1", "c1", 100) }
+      launch { val _ = store.updateChapterDuration("A::b1", "c2", 200) }
+    }
+
+    val updated = store.chapters("A::b1")
+    assertEquals(100, updated.single { it.id == "c1" }.durationSeconds)
+    assertEquals(200, updated.single { it.id == "c2" }.durationSeconds)
   }
 
   @Test
