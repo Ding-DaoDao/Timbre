@@ -38,7 +38,7 @@ body:
     attributes:
       label: Timbre 版本
       description: 在「设置 → 软件版本」里查看
-      placeholder: "3.1.5"
+      placeholder: "3.2.523"
     validations:
       required: true
 

@@ -80,7 +80,7 @@ body:
     attributes:
       label: 在哪个版本上测的
       description: 在「设置 → 软件版本」里查看
-      placeholder: "例如：3.1.5"
+      placeholder: "例如：3.2.523"
     validations:
       required: true
 
