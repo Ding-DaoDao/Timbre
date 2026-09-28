@@ -76,11 +76,17 @@ public interface OnlineSourceGraph {
   @Provides
   @SingleIn(AppScope::class)
   @OnlineSourceBooksStore
-  public fun onlineSourceBooks(factory: OnlineSourceStoreFactory): DataStore<List<OnlineBook>> {
+  public fun onlineSourceBooks(
+    factory: OnlineSourceStoreFactory,
+    chapterStore: OnlineChapterStore,
+  ): DataStore<List<OnlineBook>> {
     return factory.create(
       serializer = ListSerializer(OnlineBook.serializer()),
       defaultValue = emptyList(),
       fileName = "onlineBooks",
+      // a shelf persisted before the chapter split carries the chapter lists
+      // inline: the migration moves them into [OnlineChapterStore] files
+      migrations = listOf(SplitOnlineChaptersMigration(chapterStore)),
     )
   }
 
@@ -94,6 +100,12 @@ public interface OnlineSourceGraph {
   @SingleIn(AppScope::class)
   public fun onlineChapterFileCache(application: Application): OnlineChapterFileCache {
     return OnlineChapterFileCache(File(application.filesDir, OnlineChapterFileCache.CACHE_DIR))
+  }
+
+  @Provides
+  @SingleIn(AppScope::class)
+  public fun onlineChapterStore(application: Application): OnlineChapterStore {
+    return OnlineChapterStore(File(application.filesDir, OnlineChapterStore.CHAPTER_LISTS_DIR))
   }
 
   @Provides

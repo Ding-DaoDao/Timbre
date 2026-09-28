@@ -276,6 +276,7 @@ class OnlineBookCacheManagerTest {
     return OnlineBookCacheManager(
       catalog = catalog,
       service = service,
+      chapterStore = OnlineChapterStore(createTempDirectory("online-chapters").toFile()),
       fileCache = fileCache,
       httpClient = OkHttpClient(),
       baseUrlStore = FakeStore(""),

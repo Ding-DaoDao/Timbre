@@ -6,12 +6,14 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import kotlin.io.path.createTempDirectory
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class OnlineSourceServiceTest {
 
+  private val chapterStore = OnlineChapterStore(createTempDirectory("online-chapters").toFile())
   private val booksStore = FakeBooksStore()
   private val service = OnlineSourceService(
     FakeStore(false),
@@ -19,6 +21,7 @@ class OnlineSourceServiceTest {
     FakeStore(""),
     FakeStore(""),
     booksStore,
+    chapterStore,
     mockk(),
     emptySet(),
   )
@@ -60,9 +63,12 @@ class OnlineSourceServiceTest {
     assertEquals(42_000L, stored.positionMs)
     assertEquals(5_000L, stored.skipIntroMs)
     assertEquals(3_000L, stored.skipOutroMs)
-    assertEquals(3, stored.chapters.size)
-    assertEquals(1800, stored.chapters.single { it.id == "c1" }.durationSeconds)
-    assertEquals(1700, stored.chapters.single { it.id == "c3" }.durationSeconds)
+    // the chapter list lives in its own file since the split
+    assertEquals(emptyList(), stored.chapters)
+    val chapters = chapterStore.chapters("A::b1")
+    assertEquals(3, chapters.size)
+    assertEquals(1800, chapters.single { it.id == "c1" }.durationSeconds)
+    assertEquals(1700, chapters.single { it.id == "c3" }.durationSeconds)
   }
 
   @Test
@@ -74,6 +80,7 @@ class OnlineSourceServiceTest {
       FakeStore(""),
       FakeStore(""),
       FakeBooksStore(),
+      chapterStore,
       mockk(relaxed = false),
       setOf(backend),
     )

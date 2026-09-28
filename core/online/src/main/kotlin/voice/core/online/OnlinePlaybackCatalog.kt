@@ -60,6 +60,7 @@ public data class OnlinePlaybackError(
 public class OnlinePlaybackCatalog(
   private val service: OnlineSourceService,
   @OnlineSourceBooksStore private val booksStore: DataStore<List<OnlineBook>>,
+  private val chapterStore: OnlineChapterStore,
 ) {
 
   private val stateLock = Any()
@@ -205,10 +206,10 @@ public class OnlinePlaybackCatalog(
   }
 
   /**
-   * Re-fetches the chapter list of [bookId] from the source and stores it on
-   * the shelf. Durations measured from real streams, the playback position
-   * and the skip settings survive the update; a failed or empty fetch keeps
-   * the stored chapters untouched so playback continues with them.
+   * Re-fetches the chapter list of [bookId] from the source and stores it.
+   * Durations measured from real streams, the playback position and the skip
+   * settings survive the update; a failed or empty fetch keeps the stored
+   * chapters untouched so playback continues with them.
    */
   public suspend fun refreshChapters(bookId: BookId): OnlineChapterRefreshResult {
     val bookRef = OnlineUri.parseBookUri(bookId.value)
@@ -226,7 +227,8 @@ public class OnlinePlaybackCatalog(
     if (fresh.isEmpty()) {
       return OnlineChapterRefreshResult.Failed(null)
     }
-    val oldById = shelf.chapters.associateBy { it.id }
+    val storedChapters = runCatching { chapterStore.chapters(bookRef.key) }.getOrDefault(emptyList())
+    val oldById = storedChapters.associateBy { it.id }
     val merged = fresh.map { chapter ->
       val measured = measuredDurations[OnlineUri.build(bookRef.source, bookRef.bookId, chapter.id)]
       val previous = oldById[chapter.id]
@@ -243,13 +245,18 @@ public class OnlinePlaybackCatalog(
     // source: reset the stored position instead of pointing at nothing
     val positionSurvives = shelf.currentChapterId.isBlank() || shelf.currentChapterId in freshIds
     runCatching {
+      chapterStore.put(bookRef.key, merged)
+    }.onFailure {
+      Logger.w("Failed to persist refreshed online chapters of ${bookRef.key}: $it")
+      return OnlineChapterRefreshResult.Failed(it.message)
+    }
+    runCatching {
       booksStore.updateData { books ->
         books.map { book ->
           if (book.key != bookRef.key) {
             book
           } else {
             book.copy(
-              chapters = merged,
               currentChapterId = if (positionSurvives) shelf.currentChapterId else "",
               positionMs = if (positionSurvives) shelf.positionMs else 0L,
             )
@@ -257,7 +264,7 @@ public class OnlinePlaybackCatalog(
         }
       }
     }.onFailure {
-      Logger.w("Failed to persist refreshed online chapters of ${bookRef.key}: $it")
+      Logger.w("Failed to persist the refreshed online position of ${bookRef.key}: $it")
       return OnlineChapterRefreshResult.Failed(it.message)
     }
     // the session copies hold the previous chapter list: drop them so the
@@ -438,7 +445,12 @@ public class OnlinePlaybackCatalog(
       ?: pendingBooks[bookRef.key]
       ?: return null
     rememberAssembled(bookRef.key, onlineBook)
+    // session copies (search stash, in-flight refresh) carry their list inline;
+    // shelf records keep only metadata and read the list from chapterStore,
+    // falling back to the source when neither has one
     val chapters = onlineBook.chapters.ifEmpty {
+      runCatching { chapterStore.chapters(bookRef.key) }.getOrDefault(emptyList())
+    }.ifEmpty {
       runCatching { service.chapters(bookRef.source, bookRef.bookId) }.getOrDefault(emptyList())
     }
     if (chapters.isEmpty()) return null
@@ -494,21 +506,26 @@ public class OnlinePlaybackCatalog(
   )
 
   /**
-   * Builds a display [Book] purely from the locally stored [OnlineBook] (no
-   * network), so the shelf can show online books. Playback still goes through
-   * [book], which may fetch fresher chapters.
+   * Builds a display [Book] purely from locally stored data (no network), so
+   * the shelf can show online books. [chapters] is the persisted list from
+   * [OnlineChapterStore]; the record itself only carries metadata since the
+   * chapter split. Playback still goes through [book], which may fetch
+   * fresher chapters.
    */
-  public fun localBook(onlineBook: OnlineBook): Book {
+  public fun localBook(
+    onlineBook: OnlineBook,
+    chapters: List<OnlineChapter> = emptyList(),
+  ): Book {
     val bookRef = OnlineBookRef(onlineBook.source, onlineBook.bookId)
     val bookId = BookId(OnlineUri.buildBookUri(onlineBook.source, onlineBook.bookId))
-    val chapters = onlineBook.chapters.ifEmpty {
+    val chapterList = chapters.ifEmpty { onlineBook.chapters }.ifEmpty {
       listOf(OnlineChapter(id = onlineBook.bookId, title = onlineBook.title, durationSeconds = 0, order = 1))
     }
-    val chapterIds = chapters.map { ChapterId(OnlineUri.build(bookRef.source, bookRef.bookId, it.id)) }
+    val chapterIds = chapterList.map { ChapterId(OnlineUri.build(bookRef.source, bookRef.bookId, it.id)) }
     // the persisted position feeds the shelf card progress; without it a
     // resumed book would always show "not started" until it was played again
     val persistedIndex = onlineBook.currentChapterId.takeIf { it.isNotBlank() }
-      ?.let { id -> chapters.indexOfFirst { it.id == id } }
+      ?.let { id -> chapterList.indexOfFirst { it.id == id } }
       ?.takeIf { it >= 0 }
     val content = BookContent(
       id = bookId,
@@ -531,7 +548,7 @@ public class OnlinePlaybackCatalog(
       skipIntro = onlineBook.skipIntroMs,
       skipOutro = onlineBook.skipOutroMs,
     )
-    val dataChapters = chapters.map { chapter ->
+    val dataChapters = chapterList.map { chapter ->
       val uri = OnlineUri.build(bookRef.source, bookRef.bookId, chapter.id)
       Chapter(
         id = ChapterId(uri),
@@ -568,23 +585,11 @@ public class OnlinePlaybackCatalog(
     // (often main) so measuring a chapter never stalls the UI.
     persistenceScope.launch {
       try {
-        booksStore.updateData { books ->
-          books.map { book ->
-            if (book.source != source || book.bookId != bookId) {
-              book
-            } else {
-              book.copy(
-                chapters = book.chapters.map { chapter ->
-                  if (chapter.id == chapterId) {
-                    chapter.copy(durationSeconds = (durationMs / 1_000L).toInt())
-                  } else {
-                    chapter
-                  }
-                },
-              )
-            }
-          }
-        }
+        val _ = chapterStore.updateChapterDuration(
+          key = "$source::$bookId",
+          chapterId = chapterId,
+          durationSeconds = (durationMs / 1_000L).toInt(),
+        )
       } catch (e: CancellationException) {
         throw e
       } catch (e: Exception) {

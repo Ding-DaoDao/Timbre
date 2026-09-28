@@ -23,6 +23,7 @@ public class OnlineSourceService internal constructor(
   @OnlineSourceCredentialStore private val credentialStore: DataStore<String>,
   @OnlineSourceTokenStore private val tokenStore: DataStore<String>,
   @OnlineSourceBooksStore private val booksStore: DataStore<List<OnlineBook>>,
+  private val chapterStore: OnlineChapterStore,
   private val client: OnlineSourceClient,
   private val extensionSources: Set<@JvmSuppressWildcards ExtensionOnlineSource>,
 ) {
@@ -161,8 +162,15 @@ public class OnlineSourceService internal constructor(
    * book that is already on the shelf keeps its playback position, its skip
    * settings and the durations measured from real streams: only the chapter
    * list itself is taken from the fresh copy.
+   *
+   * The chapter list is persisted in [chapterStore], not in the shelf record:
+   * the shelf JSON stays small and position saves do not rewrite the chapters.
    */
   public suspend fun addToShelf(book: OnlineBook) {
+    if (book.chapters.isNotEmpty()) {
+      val storedChapters = runCatching { chapterStore.chapters(book.key) }.getOrDefault(emptyList())
+      chapterStore.put(book.key, mergeChapterDurations(storedChapters, book.chapters))
+    }
     booksStore.updateData { current ->
       val existing = current.firstOrNull { it.key == book.key }
       val merged = if (existing == null) {
@@ -173,10 +181,11 @@ public class OnlineSourceService internal constructor(
           positionMs = existing.positionMs,
           skipIntroMs = existing.skipIntroMs,
           skipOutroMs = existing.skipOutroMs,
-          chapters = mergeChapterDurations(existing.chapters, book.chapters),
         )
       }
-      listOf(merged.copy(addedAt = System.currentTimeMillis())) +
+      // a fresh copy without chapters must not wipe the stored list: it would
+      // break the offline playback of a book whose source forgot the chapters
+      listOf(merged.copy(chapters = emptyList(), addedAt = System.currentTimeMillis())) +
         current.filterNot { it.key == book.key }
     }
   }
@@ -207,6 +216,7 @@ public class OnlineSourceService internal constructor(
     booksStore.updateData { current ->
       current.filterNot { it.key == key }
     }
+    chapterStore.remove(key)
   }
 
   public suspend fun shelfBook(key: String): OnlineBook? {

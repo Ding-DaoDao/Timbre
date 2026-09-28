@@ -37,6 +37,7 @@ import kotlin.math.min
 public class OnlineDurationProbeAhead internal constructor(
   private val service: OnlineSourceService,
   private val catalog: OnlinePlaybackCatalog,
+  private val chapterStore: OnlineChapterStore,
   private val context: Application,
   @OnlineSourceStreamingClient private val httpClient: OkHttpClient,
   dispatcherProvider: DispatcherProvider,
@@ -68,6 +69,8 @@ public class OnlineDurationProbeAhead internal constructor(
     if (isMetered()) return
     val book = catalog.lookupOnlineBook(bookRef.source, bookRef.bookId) ?: return
     val chapters = book.chapters.ifEmpty {
+      runCatching { chapterStore.chapters(bookRef.key) }.getOrDefault(emptyList())
+    }.ifEmpty {
       runCatching { service.chapters(bookRef.source, bookRef.bookId) }.getOrDefault(emptyList())
     }
     val currentId = OnlineUri.parse(chapterId.value)?.chapterId ?: chapterId.value

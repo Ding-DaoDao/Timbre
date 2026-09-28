@@ -13,11 +13,13 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import org.junit.runner.RunWith
 import voice.core.common.DispatcherProvider
@@ -28,7 +30,11 @@ import voice.core.data.KioskModeDemoData
 import voice.core.data.repo.BookRepository
 import voice.core.data.repo.internals.dao.RecentBookSearchDao
 import voice.core.featureflag.MemoryFeatureFlag
+import voice.core.online.OnlineBook
+import voice.core.online.OnlineChapter
+import voice.core.online.OnlineChapterStore
 import voice.core.online.OnlinePlaybackCatalog
+import voice.core.online.OnlineUri
 import voice.core.playback.LivePlaybackState
 import voice.core.playback.PlayerController
 import voice.core.playback.overlay
@@ -44,9 +50,12 @@ import voice.features.bookOverview.book
 import voice.features.bookOverview.search.BookSearchViewState
 import voice.navigation.Destination
 import voice.navigation.Navigator
+import kotlin.io.path.createTempDirectory
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeSource
 
 // robolectric: the placeholder cards derive their name from the book uri
 @RunWith(AndroidJUnit4::class)
@@ -54,6 +63,95 @@ class BookOverviewViewModelTest {
 
   private val testDispatcher = UnconfinedTestDispatcher()
   private val dispatcherProvider = DispatcherProvider(testDispatcher, testDispatcher, testDispatcher)
+  private val onlineChapterStore = OnlineChapterStore(createTempDirectory("online-chapters").toFile())
+
+  @Test
+  fun `online books render immediately and merge their chapter durations`() = runTest {
+    val onlineBook = OnlineBook(
+      source = "A",
+      bookId = "b1",
+      title = "在线书",
+      cover = "https://example.com/cover.jpg",
+    )
+    val onlineBookId = BookId(OnlineUri.buildBookUri(onlineBook.source, onlineBook.bookId))
+    val onlineBooksStore = MemoryDataStore(listOf(onlineBook))
+    val viewModel = BookOverviewViewModel(
+      repo = mockk<BookRepository> {
+        every { flow() } returns MutableStateFlow(emptyList())
+      },
+      mediaScanner = mockk<MediaScanTrigger> {
+        every { scannerActive } returns MutableStateFlow(false)
+        every { bookScanProgress } returns MutableStateFlow(emptyMap())
+        every { bookScanErrors } returns MutableStateFlow(emptyMap())
+        every { scan(any()) } just Runs
+      },
+      playStateManager = PlayStateManager(),
+      updateNotifier = mockk {
+        every { update } returns MutableStateFlow(null)
+      },
+      playerController = mockk<PlayerController>(),
+      currentBookStoreDataStore = MemoryDataStore(null),
+      gridModeStore = MemoryDataStore(GridMode.LIST),
+      gridCount = mockk<GridCount> {
+        every { useGridAsDefault() } returns false
+      },
+      navigator = mockk<Navigator>(),
+      recentBookSearchDao = mockk<RecentBookSearchDao> {
+        every { recentBookSearches() } returns MutableStateFlow(emptyList())
+      },
+      search = mockk<BookSearch> {
+        coEvery { search(any()) } returns emptyList()
+      },
+      deviceHasStoragePermissionBug = mockk<DeviceHasStoragePermissionBug> {
+        every { hasBug } returns MutableStateFlow(false)
+      },
+      folderPickerInSettingsFeatureFlag = MemoryFeatureFlag(false),
+      experimentalPlaybackPersistenceFeatureFlag = MemoryFeatureFlag(false),
+      onlineBooksStore = onlineBooksStore,
+      onlineChapterStore = onlineChapterStore,
+      onlinePlaybackCatalog = OnlinePlaybackCatalog(
+        mockk(),
+        MemoryDataStore(listOf(onlineBook)),
+        onlineChapterStore,
+      ),
+      kioskModeFeatureFlag = MemoryFeatureFlag(false),
+      dispatcherProvider = dispatcherProvider,
+    )
+
+    backgroundScope.launchMolecule(RecompositionMode.Immediate) {
+      viewModel.state()
+    }.test {
+      // the card is on the shelf right away - metadata and cover url first,
+      // with the placeholder duration until the chapter list file arrives
+      val initial = awaitStateWith(onlineBookId)
+      val initialItemState = initial.books.values.firstNotNullOf { group -> group.getValue(onlineBookId) }
+      assertEquals("https://example.com/cover.jpg", initialItemState.value.cover)
+      assertEquals("30:00", initialItemState.value.remainingTime)
+
+      // the chapter list arrives (the app warms it at startup); the next
+      // recomposition updates the card state in place, so re-read the value
+      // the way the shelf UI does instead of waiting for a new emission
+      onlineChapterStore.put(
+        onlineBook.key,
+        listOf(
+          OnlineChapter(id = "c1", title = "第1集", durationSeconds = 3_600),
+          OnlineChapter(id = "c2", title = "第2集", durationSeconds = 3_600),
+        ),
+      )
+      onlineBooksStore.updateData { books -> books.map { it.copy(addedAt = it.addedAt + 1) } }
+      val merged = withContext(Dispatchers.IO) {
+        val mark = TimeSource.Monotonic.markNow()
+        var value = initialItemState.value
+        while (value.remainingTime == "30:00") {
+          check(mark.elapsedNow() < 5_000.milliseconds) { "the chapter durations never merged into the card" }
+          Thread.sleep(10)
+          value = initialItemState.value
+        }
+        value
+      }
+      assertEquals("2:00:00", merged.remainingTime)
+    }
+  }
 
   @Test
   fun `state updates the current book item from live playback`() = runTest {
@@ -95,9 +193,11 @@ class BookOverviewViewModelTest {
       folderPickerInSettingsFeatureFlag = MemoryFeatureFlag(false),
       experimentalPlaybackPersistenceFeatureFlag = MemoryFeatureFlag(true),
       onlineBooksStore = MemoryDataStore(emptyList()),
+      onlineChapterStore = onlineChapterStore,
       onlinePlaybackCatalog = OnlinePlaybackCatalog(
         mockk(),
         MemoryDataStore(emptyList()),
+        onlineChapterStore,
       ),
       kioskModeFeatureFlag = MemoryFeatureFlag(false),
       dispatcherProvider = dispatcherProvider,
@@ -271,9 +371,11 @@ class BookOverviewViewModelTest {
       folderPickerInSettingsFeatureFlag = MemoryFeatureFlag(false),
       experimentalPlaybackPersistenceFeatureFlag = MemoryFeatureFlag(false),
       onlineBooksStore = MemoryDataStore(emptyList()),
+      onlineChapterStore = onlineChapterStore,
       onlinePlaybackCatalog = OnlinePlaybackCatalog(
         mockk(),
         MemoryDataStore(emptyList()),
+        onlineChapterStore,
       ),
       kioskModeFeatureFlag = MemoryFeatureFlag(true),
       dispatcherProvider = dispatcherProvider,
@@ -421,9 +523,11 @@ class BookOverviewViewModelTest {
       folderPickerInSettingsFeatureFlag = folderPickerInSettingsFeatureFlag,
       experimentalPlaybackPersistenceFeatureFlag = MemoryFeatureFlag(false),
       onlineBooksStore = MemoryDataStore(emptyList()),
+      onlineChapterStore = onlineChapterStore,
       onlinePlaybackCatalog = OnlinePlaybackCatalog(
         mockk(),
         MemoryDataStore(emptyList()),
+        onlineChapterStore,
       ),
       kioskModeFeatureFlag = MemoryFeatureFlag(false),
       dispatcherProvider = dispatcherProvider,

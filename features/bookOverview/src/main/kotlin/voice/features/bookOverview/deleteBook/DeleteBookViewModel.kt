@@ -19,6 +19,7 @@ import voice.core.logging.api.Logger
 import voice.core.online.OnlineBook
 import voice.core.online.OnlineBookCacheManager
 import voice.core.online.OnlineChapterFileCache
+import voice.core.online.OnlineChapterStore
 import voice.core.online.OnlineSourceBooksStore
 import voice.core.online.OnlineUri
 import voice.core.scanner.MediaScanTrigger
@@ -34,6 +35,7 @@ class DeleteBookViewModel(
   private val mediaScanTrigger: MediaScanTrigger,
   private val bookRepository: BookRepository,
   @OnlineSourceBooksStore private val onlineBooksStore: DataStore<List<OnlineBook>>,
+  private val onlineChapterStore: OnlineChapterStore,
   private val cacheManager: OnlineBookCacheManager,
   private val fileCache: OnlineChapterFileCache,
   private val dispatcherProvider: DispatcherProvider,
@@ -110,6 +112,11 @@ class DeleteBookViewModel(
           // stops a running job, drops its progress and deletes the files -
           // a deleted book must not leave orphaned downloads behind
           val _ = cacheManager.clearBook(state.id)
+          // the per-book chapter list file goes with the shelf record, so a
+          // re-added book starts from the source instead of a stale local list
+          OnlineUri.parseBookUri(state.id.value)?.let { ref ->
+            onlineChapterStore.remove(ref.key)
+          }
           onlineBooksStore.updateData { books ->
             books.filterNot { book ->
               OnlineUri.buildBookUri(book.source, book.bookId) == state.id.value

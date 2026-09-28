@@ -112,6 +112,7 @@ public data class OnlineCacheConfirmation(
 public class OnlineBookCacheManager(
   private val catalog: OnlinePlaybackCatalog,
   private val service: OnlineSourceService,
+  private val chapterStore: OnlineChapterStore,
   private val fileCache: OnlineChapterFileCache,
   @OnlineSourceStreamingClient private val httpClient: OkHttpClient,
   @OnlineSourceBaseUrlStore private val baseUrlStore: DataStore<String>,
@@ -164,6 +165,7 @@ public class OnlineBookCacheManager(
     val bookRef = OnlineUri.parseBookUri(bookId.value) ?: return null
     val book = catalog.lookupOnlineBook(bookRef.source, bookRef.bookId)
     val chapters = book?.chapters?.takeIf { it.isNotEmpty() }
+      ?: runCatching { chapterStore.chapters(bookRef.key) }.getOrDefault(emptyList()).takeIf { it.isNotEmpty() }
       ?: runCatching { service.chapters(bookRef.source, bookRef.bookId) }.getOrNull().orEmpty()
     val currentIndex = book?.currentChapterId
       ?.takeIf { id -> id.isNotBlank() }
@@ -347,10 +349,12 @@ public class OnlineBookCacheManager(
     if (!isCurrent(bookUri, generation)) return
     // the shelf copy is local: it knows the title and the window without
     // touching the network, which matters because a declined confirmation
-    // must not send a single request. A failing store read falls back to the
-    // source below instead of killing the job without a word
+    // must not send a single request. The chapter list file counts as local
+    // too; only a failing store read falls back to the source below instead
+    // of killing the job without a word
     val localBook = runCatching { catalog.lookupOnlineBook(bookRef.source, bookRef.bookId) }.getOrNull()
-    val localChapters = localBook?.chapters.orEmpty()
+    val localChapters = localBook?.chapters?.takeIf { it.isNotEmpty() }
+      ?: runCatching { chapterStore.chapters(bookRef.key) }.getOrDefault(emptyList())
     val localStart = startIndex(localBook, localChapters)
     val wanted = localChapters.takeIf { it.isNotEmpty() }?.drop(localStart)?.take(job.count)
     var meteredAllowed = false

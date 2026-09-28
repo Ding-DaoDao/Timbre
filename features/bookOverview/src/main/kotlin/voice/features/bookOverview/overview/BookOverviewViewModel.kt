@@ -37,6 +37,7 @@ import voice.core.featureflag.FolderPickerInSettingsFeatureFlagQualifier
 import voice.core.featureflag.KioskModeFeatureFlagQualifier
 import voice.core.logging.api.Logger
 import voice.core.online.OnlineBook
+import voice.core.online.OnlineChapterStore
 import voice.core.online.OnlinePlaybackCatalog
 import voice.core.online.OnlineSourceBooksStore
 import voice.core.online.OnlineUri
@@ -81,6 +82,7 @@ class BookOverviewViewModel(
   private val kioskModeFeatureFlag: FeatureFlag<Boolean>,
   val updateNotifier: UpdateNotifier,
   @OnlineSourceBooksStore private val onlineBooksStore: DataStore<List<OnlineBook>>,
+  private val onlineChapterStore: OnlineChapterStore,
   private val onlinePlaybackCatalog: OnlinePlaybackCatalog,
   dispatcherProvider: DispatcherProvider,
 ) {
@@ -107,8 +109,14 @@ class BookOverviewViewModel(
     val storedOnlineBooks = remember { onlineBooksStore.data }
       .collectAsState(initial = emptyList()).value
     // online books live in their own store; synthesize display books so they
-    // show up on the shelf and open the player like any other book
-    val books = localBooks + storedOnlineBooks.map { onlinePlaybackCatalog.localBook(it) }
+    // show up on the shelf and open the player like any other book. The
+    // chapter lists live in per-book files and merge in as they load: the
+    // cards appear immediately and their durations catch up right after
+    val onlineChapterLists = remember { onlineChapterStore.loadedChapters }
+      .collectAsState().value
+    val books = localBooks + storedOnlineBooks.map {
+      onlinePlaybackCatalog.localBook(it, onlineChapterLists[it.key].orEmpty())
+    }
     val currentBookId = remember { currentBookStoreDataStore.data }
       .collectAsState(initial = null).value
     val scannerActive = remember { mediaScanner.scannerActive }

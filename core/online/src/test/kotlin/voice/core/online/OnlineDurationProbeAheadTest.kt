@@ -20,6 +20,7 @@ import voice.core.common.DispatcherProvider
 import voice.core.data.BookId
 import voice.core.data.ChapterId
 import voice.core.online.ResolvedStream
+import kotlin.io.path.createTempDirectory
 import kotlin.test.Test
 
 class OnlineDurationProbeAheadTest {
@@ -104,6 +105,7 @@ class OnlineDurationProbeAheadTest {
         }
       },
       catalog = catalog,
+      chapterStore = OnlineChapterStore(createTempDirectory("online-chapters").toFile()),
       context = context,
       httpClient = httpClient,
       dispatcherProvider = dispatcherProvider,

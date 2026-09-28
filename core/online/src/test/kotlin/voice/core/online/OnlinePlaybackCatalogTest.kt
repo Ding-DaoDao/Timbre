@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
+import kotlin.io.path.createTempDirectory
 import voice.core.data.BookId
 import voice.core.data.ChapterId
 import voice.core.online.ResolvedStream
@@ -27,7 +28,8 @@ import kotlin.time.TimeSource
 class OnlinePlaybackCatalogTest {
 
   private val service = mockk<OnlineSourceService>()
-  private val catalog = OnlinePlaybackCatalog(service, FakeBooksStore())
+  private val chapterStore = OnlineChapterStore(createTempDirectory("online-chapters").toFile())
+  private val catalog = OnlinePlaybackCatalog(service, FakeBooksStore(), chapterStore)
 
   private fun shelfBook() = OnlineBook(
     source = SOURCE,
@@ -250,7 +252,7 @@ class OnlinePlaybackCatalogTest {
   fun `a persisted shelf position resumes the book`() = runTest {
     coEvery { service.shelfBook("A::$BOOK_ID") } returns
       shelfBook().copy(currentChapterId = "c2", positionMs = 42_000L)
-    val catalog = OnlinePlaybackCatalog(service, FakeBooksStore())
+    val catalog = OnlinePlaybackCatalog(service, FakeBooksStore(), chapterStore)
 
     val book = assertNotNull(catalog.book(bookId()))
     assertEquals(OnlineUri.build(SOURCE, BOOK_ID, "c2"), book.content.currentChapter.value)
@@ -261,7 +263,7 @@ class OnlinePlaybackCatalogTest {
   fun `a session position wins over the persisted one`() = runTest {
     coEvery { service.shelfBook("A::$BOOK_ID") } returns
       shelfBook().copy(currentChapterId = "c2", positionMs = 42_000L)
-    val catalog = OnlinePlaybackCatalog(service, FakeBooksStore())
+    val catalog = OnlinePlaybackCatalog(service, FakeBooksStore(), chapterStore)
 
     catalog.updatePosition(
       bookId = bookId(),
@@ -277,7 +279,7 @@ class OnlinePlaybackCatalogTest {
   @Test
   fun `updatePosition persists to the shelf entry`() = runTest {
     val store = FakeBooksStore(listOf(shelfBook()))
-    val catalog = OnlinePlaybackCatalog(service, store)
+    val catalog = OnlinePlaybackCatalog(service, store, chapterStore)
 
     catalog.updatePosition(
       bookId = bookId(),
@@ -294,7 +296,7 @@ class OnlinePlaybackCatalogTest {
   @Test
   fun `a chapter change persists immediately without waiting for the interval`() = runTest {
     val store = FakeBooksStore(listOf(shelfBook()))
-    val catalog = OnlinePlaybackCatalog(service, store)
+    val catalog = OnlinePlaybackCatalog(service, store, chapterStore)
 
     catalog.updatePosition(
       bookId = bookId(),
@@ -322,6 +324,8 @@ class OnlinePlaybackCatalogTest {
 
   @Test
   fun `refresh stores new chapters and keeps position and skip settings`() = runTest {
+    // the persisted chapter list lives in its own file since the split
+    chapterStore.put("A::$BOOK_ID", shelfBook().chapters)
     val store = FakeBooksStore(
       listOf(
         shelfBook().copy(
@@ -329,10 +333,11 @@ class OnlinePlaybackCatalogTest {
           positionMs = 42_000L,
           skipIntroMs = 5_000L,
           skipOutroMs = 3_000L,
+          chapters = emptyList(),
         ),
       ),
     )
-    val catalog = OnlinePlaybackCatalog(service, store)
+    val catalog = OnlinePlaybackCatalog(service, store, chapterStore)
     coEvery { service.shelfBook("A::$BOOK_ID") } returns store.data.first().single()
     coEvery { service.refreshChapters(SOURCE, BOOK_ID) } returns shelfBook().chapters +
       OnlineChapter(id = "c4", title = "第4集", durationSeconds = 1700)
@@ -341,17 +346,20 @@ class OnlinePlaybackCatalogTest {
 
     assertEquals(OnlineChapterRefreshResult.Updated(added = 1, total = 4), result)
     val stored = store.data.first().single()
-    assertEquals(4, stored.chapters.size)
+    // the shelf record stays metadata only: the chapter list lives in its own file
+    assertEquals(emptyList(), stored.chapters)
     assertEquals("c2", stored.currentChapterId)
     assertEquals(42_000L, stored.positionMs)
     assertEquals(5_000L, stored.skipIntroMs)
     assertEquals(3_000L, stored.skipOutroMs)
+    assertEquals(4, chapterStore.chapters("A::$BOOK_ID").size)
   }
 
   @Test
   fun `refresh prefers measured durations over empty fresh ones`() = runTest {
-    val store = FakeBooksStore(listOf(shelfBook()))
-    val catalog = OnlinePlaybackCatalog(service, store)
+    chapterStore.put("A::$BOOK_ID", shelfBook().chapters)
+    val store = FakeBooksStore(listOf(shelfBook().copy(chapters = emptyList())))
+    val catalog = OnlinePlaybackCatalog(service, store, chapterStore)
     coEvery { service.shelfBook("A::$BOOK_ID") } returns store.data.first().single()
     // the stream measured c3 while the source still reports nothing
     catalog.recordMeasuredDuration(SOURCE, BOOK_ID, "c3", 120_000L)
@@ -360,27 +368,27 @@ class OnlinePlaybackCatalogTest {
     val result = catalog.refreshChapters(bookId())
 
     assertEquals(OnlineChapterRefreshResult.UpToDate(total = 3), result)
-    val stored = store.data.first().single()
-    assertEquals(120, stored.chapters.single { it.id == "c3" }.durationSeconds)
+    assertEquals(120, chapterStore.chapters("A::$BOOK_ID").single { it.id == "c3" }.durationSeconds)
   }
 
   @Test
   fun `a failed refresh keeps the stored chapters`() = runTest {
-    val store = FakeBooksStore(listOf(shelfBook()))
-    val catalog = OnlinePlaybackCatalog(service, store)
-    coEvery { service.shelfBook("A::$BOOK_ID") } returns shelfBook()
+    chapterStore.put("A::$BOOK_ID", shelfBook().chapters)
+    val store = FakeBooksStore(listOf(shelfBook().copy(chapters = emptyList())))
+    val catalog = OnlinePlaybackCatalog(service, store, chapterStore)
+    coEvery { service.shelfBook("A::$BOOK_ID") } returns store.data.first().single()
     coEvery { service.refreshChapters(SOURCE, BOOK_ID) } throws OnlineSourceException("boom")
 
     val result = catalog.refreshChapters(bookId())
 
     assertTrue(result is OnlineChapterRefreshResult.Failed)
-    assertEquals(3, store.data.first().single().chapters.size)
+    assertEquals(3, chapterStore.chapters("A::$BOOK_ID").size)
   }
 
   @Test
   fun `skip settings persist and surface in the synthesized book`() = runTest {
     val store = FakeBooksStore(listOf(shelfBook()))
-    val catalog = OnlinePlaybackCatalog(service, store)
+    val catalog = OnlinePlaybackCatalog(service, store, chapterStore)
 
     catalog.setSkipIntro(bookId(), 5_000L)
     catalog.setSkipOutro(bookId(), 7_000L)
