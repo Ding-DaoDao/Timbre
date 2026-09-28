@@ -562,8 +562,8 @@ class VoicePlayer(
     val mediaItems = if (onlineCover == null) {
       prefix.items
     } else {
-      // online books have no local cover file; the remote cover url still
-      // feeds the notification and Android Auto artwork
+      // the online cover resolves to a local file (or the remote url while it
+      // still downloads); it feeds the notification and Android Auto artwork
       prefix.items.map { item ->
         item.buildUpon()
           .setMediaMetadata(

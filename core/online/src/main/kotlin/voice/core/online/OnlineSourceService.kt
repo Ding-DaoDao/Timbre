@@ -19,6 +19,7 @@ import voice.core.common.DispatcherProvider
 import voice.core.logging.api.Logger
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.util.concurrent.TimeUnit
 
 /**
  * Facade over [OnlineSourceClient] that owns the configuration stores and the
@@ -42,8 +43,16 @@ public class OnlineSourceService internal constructor(
   private val extensionSources: Set<@JvmSuppressWildcards ExtensionOnlineSource>,
 ) {
 
-  /** Serial cover downloads: one image at a time, gentler on slow sources. */
+  /** Background cover downloads. Writes go through the stores' own locks, so
+   *  concurrent downloads for different books stay safe. */
   private val coverScope = CoroutineScope(SupervisorJob() + dispatcherProvider.io)
+
+  /** The streaming client has no call timeout on purpose (a chapter stays
+   *  open); a cover download must finish, so it gets its own deadline while
+   *  sharing the connection pool. */
+  private val coverHttpClient = httpClient.newBuilder()
+    .callTimeout(15, TimeUnit.SECONDS)
+    .build()
   private val loginMutex = Mutex()
   private var cachedToken: String? = null
   private val chaptersCache = object : LinkedHashMap<String, List<OnlineChapter>>(0, 0.75f, true) {
@@ -256,8 +265,14 @@ public class OnlineSourceService internal constructor(
     val books = runCatching { booksStore.data.first() }.getOrDefault(emptyList())
     for (book in books) {
       if (!book.cover.startsWith("http")) continue
-      if (coverStore.file(book.key) != null) continue
-      rewriteCoverToLocalFile(book.key, book.cover)
+      // a file may already exist while the record is still remote (a previous
+      // rewrite failed after the download): serve it without re-downloading
+      val existing = coverStore.file(book.key)
+      if (existing != null) {
+        rewriteRecordCover(book.key, existing)
+      } else {
+        rewriteCoverToLocalFile(book.key, book.cover)
+      }
     }
   }
 
@@ -279,10 +294,27 @@ public class OnlineSourceService internal constructor(
       .onFailure { Logger.w("Could not store the cover of $key: $it") }
       .getOrNull()
       ?: return
+    rewriteRecordCover(key, stored, expectedRemoteUrl = url)
+  }
+
+  /**
+   * Points the shelf record at the local cover file - but only while the
+   * record still carries a remote url (and for downloads: the exact url the
+   * file came from), so a re-add with a fresher cover is not rolled back by a
+   * slow download, and an already local record is left alone.
+   */
+  private suspend fun rewriteRecordCover(
+    key: String,
+    file: File,
+    expectedRemoteUrl: String? = null,
+  ) {
     runCatching {
       booksStore.updateData { books ->
         books.map { book ->
-          if (book.key == key) book.copy(cover = stored.toURI().toString()) else book
+          val matches = book.key == key &&
+            book.cover.startsWith("http") &&
+            (expectedRemoteUrl == null || book.cover == expectedRemoteUrl)
+          if (matches) book.copy(cover = file.toURI().toString()) else book
         }
       }
     }.onFailure { Logger.w("Could not rewrite the cover of $key to the local file: $it") }
@@ -290,7 +322,7 @@ public class OnlineSourceService internal constructor(
 
   private suspend fun downloadCoverBytes(url: String): ByteArray? {
     return withContext(Dispatchers.IO) {
-      httpClient.newCall(Request.Builder().url(url).build()).execute().use { response ->
+      coverHttpClient.newCall(Request.Builder().url(url).build()).execute().use { response ->
         if (!response.isSuccessful) return@withContext null
         val input = response.body.byteStream()
         val out = ByteArrayOutputStream()
@@ -303,8 +335,28 @@ public class OnlineSourceService internal constructor(
           if (total > MAX_COVER_BYTES) return@withContext null
           out.write(chunk, 0, read)
         }
-        out.toByteArray()
+        val bytes = out.toByteArray()
+        // an error page must not replace a cover: Coil could not decode it and
+        // the record would stay pointed at an undecodable file forever
+        if (!looksLikeImage(bytes)) return@withContext null
+        bytes
       }
+    }
+  }
+
+  /** Common image magic numbers; html/xml error pages are rejected. Unknown
+   *  binary formats pass - Coil sniffs them exactly like it does today. */
+  private fun looksLikeImage(bytes: ByteArray): Boolean {
+    if (bytes.size < 12) return false
+    val b0 = bytes[0].toInt() and 0xFF
+    val b1 = bytes[1].toInt() and 0xFF
+    return when {
+      b0 == 0xFF && b1 == 0xD8 -> true // jpeg
+      b0 == 0x89 && b1 == 0x50 -> true // png
+      b0 == 0x47 && b1 == 0x49 -> true // gif
+      b0 == 0x42 && b1 == 0x4D -> true // bmp
+      b0 == 0x52 && (bytes[8].toInt() and 0xFF) == 0x57 -> true // webp (RIFF....WEBP)
+      else -> !String(bytes, 0, 8, Charsets.US_ASCII).contains('<')
     }
   }
 

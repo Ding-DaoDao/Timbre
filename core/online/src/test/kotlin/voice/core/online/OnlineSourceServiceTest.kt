@@ -17,6 +17,7 @@ import kotlin.io.path.createTempDirectory
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
@@ -130,6 +131,58 @@ class OnlineSourceServiceTest {
     assertEquals(file.toURI().toString(), stored.cover)
     assertEquals(coverBytes, file.readText())
     server.close()
+  }
+
+  @Test
+  fun `a non-image cover response keeps the remote url`() = runTest {
+    val server = MockWebServer()
+    server.start()
+    server.enqueue(MockResponse.Builder().code(200).body("<html>gateway error</html>").build())
+
+    val service = OnlineSourceService(
+      FakeStore(false),
+      FakeStore(""),
+      FakeStore(""),
+      FakeStore(""),
+      booksStore,
+      chapterStore,
+      coverStore,
+      OkHttpClient(),
+      mockk(),
+      dispatcherProvider,
+      emptySet(),
+    )
+    service.addToShelf(
+      OnlineBook(
+        source = "A",
+        bookId = "b2",
+        title = "T",
+        cover = server.url("/cover").toString(),
+      ),
+    )
+
+    // give the background download time to run; an error page must neither be
+    // stored nor rewrite the record
+    withContext(Dispatchers.IO) {
+      Thread.sleep(500)
+    }
+
+    assertNull(coverStore.file("A::b2"))
+    assertTrue(booksStore.data.first().single().cover.startsWith("http"))
+    server.close()
+  }
+
+  @Test
+  fun `backfill rewrites a remote record from an existing local cover`() = runTest {
+    val file = assertNotNull(coverStore.write("A::b3", byteArrayOf(1, 2, 3)))
+    booksStore.updateData {
+      listOf(OnlineBook(source = "A", bookId = "b3", title = "T", cover = "https://example.com/cover.jpg"))
+    }
+
+    service.backfillCovers()
+
+    // served from the existing file without touching the network
+    assertEquals(file.toURI().toString(), booksStore.data.first().single().cover)
   }
 
   @Test
