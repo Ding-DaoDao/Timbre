@@ -1,6 +1,7 @@
 package voice.core.playback.player
 
 import android.net.Uri
+import androidx.core.net.toUri
 import androidx.datastore.core.DataStore
 import androidx.media3.common.C
 import androidx.media3.common.ForwardingPlayer
@@ -642,7 +643,7 @@ class VoicePlayer(
    * a remote url passes through unchanged.
    */
   private fun String.toSessionArtworkUri(): Uri {
-    val uri = Uri.parse(this)
+    val uri = toUri()
     if (uri.scheme != "file") return uri
     val file = uri.path?.let(::File) ?: return uri
     return imageFileProvider.uri(file)
