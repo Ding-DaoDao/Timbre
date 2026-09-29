@@ -74,12 +74,30 @@ class OnlineChapterStoreTest {
   }
 
   @Test
+  fun `updateChapterDuration never overwrites a reported duration unless asked`() = runTest {
+    store.put("A::b1", chapters)
+
+    // a head-probe estimate must not replace a duration the source reported
+    assertFalse(store.updateChapterDuration("A::b1", "c1", 809, overwriteExisting = false))
+    assertEquals(1800, store.chapters("A::b1").single { it.id == "c1" }.durationSeconds)
+
+    // the player-reported ground truth may
+    assertTrue(store.updateChapterDuration("A::b1", "c1", 809, overwriteExisting = true))
+    assertEquals(809, store.chapters("A::b1").single { it.id == "c1" }.durationSeconds)
+
+    // a zero duration (the source reported nothing) is always filled
+    assertTrue(store.updateChapterDuration("A::b1", "c2", 1750, overwriteExisting = false))
+    assertEquals(1750, store.chapters("A::b1").single { it.id == "c2" }.durationSeconds)
+  }
+
+  @Test
   fun `concurrent duration updates do not lose each other`() = runTest {
     store.put("A::b1", chapters)
 
-    // the probe-ahead measures one chapter while the player measures another
+    // the player reports ground truth for one chapter while a fill lands on
+    // another: the store mutex must serialize both without losing either
     coroutineScope {
-      launch { val _ = store.updateChapterDuration("A::b1", "c1", 100) }
+      launch { val _ = store.updateChapterDuration("A::b1", "c1", 100, overwriteExisting = true) }
       launch { val _ = store.updateChapterDuration("A::b1", "c2", 200) }
     }
 

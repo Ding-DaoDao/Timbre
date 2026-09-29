@@ -444,6 +444,44 @@ private class FakeBooksStore(initial: List<OnlineBook> = emptyList()) : DataStor
 class OnlineStreamDurationProbeTest {
 
   @Test
+  fun `ignores a false frame sync inside binary junk before the real audio`() {
+    // 有声书章节常带内嵌封面：id3v2 之后的二进制区域里可能出现看似合法的
+    // mpeg 帧头（此处声称 16kbps），真实音频是 24kbps 且成链。旧实现接受
+    // 第一个"像样"的帧头，把 10 分钟的章节算成 15 分钟。
+    val id3 = ByteArray(34).also { bytes ->
+      "ID3".forEachIndexed { i, c -> bytes[i] = c.code.toByte() }
+      bytes[9] = 24 // tag body 24 bytes
+    }
+    val falseSync = byteArrayOf(
+      0xFF.toByte(),
+      0xF2.toByte(),
+      0x20,
+      0xC0.toByte(), // mpeg2 l3 16kbps 22050Hz mono
+    )
+    val junk = ByteArray(46) // 无帧同步的二进制填充
+    val realFrame = ByteArray(78).also { bytes ->
+      // mpeg2 l3 24kbps, 78 bytes/frame
+      bytes[0] = 0xFF.toByte()
+      bytes[1] = 0xF2.toByte()
+      bytes[2] = 0x30
+      bytes[3] = 0xC0.toByte()
+      for (i in 4 until bytes.size) bytes[i] = 0x55
+    }
+    val frames = 400
+    val audio = ByteArray(78 * frames)
+    for (i in audio.indices) audio[i] = realFrame[i % 78]
+    val contentLength = (id3.size + falseSync.size + junk.size).toLong() + audio.size + 128
+    val head = id3 + falseSync + junk + audio
+
+    val estimated = OnlineStreamDurationProbe.estimateDurationMs(contentLength, head)
+
+    val audioBytes = contentLength - id3.size - 128
+    val expected = audioBytes * 8 / 24 // 真实的 24kbps 音频
+    assertEquals(expected, estimated)
+    assertTrue(estimated != audioBytes * 8 / 16) // 假同步的值必须落选
+  }
+
+  @Test
   fun `estimates cbr duration from size and bitrate`() {
     // mpeg1 layer III, 128 kbps, 44100 Hz: FF FB 90 00. The 128 byte id3v1
     // trailer is excluded from the audio bytes.

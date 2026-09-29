@@ -79,11 +79,42 @@ public object OnlineStreamDurationProbe {
     while (i < head.size - 4) {
       if (head[i] == 0xFF.toByte() && (head[i + 1].toInt() and 0xE0) == 0xE0) {
         val parsed = decodeFrame(head, i)
-        if (parsed != null) return parsed
+        // A real frame chains: the next frame header sits exactly at the
+        // advertised frame length with the same version and sample rate.
+        // Binary junk inside id3 artwork produces plausible-looking headers
+        // that never chain - accepting one made the cbr estimate report
+        // wildly wrong durations (e.g. 15min for a 10min chapter).
+        if (parsed != null && chains(head, i, parsed)) return parsed
       }
       i++
     }
     return null
+  }
+
+  /** True when the header at [offset] is followed by a valid frame header at
+   *  the advertised frame length, or when the head ends before that position. */
+  private fun chains(
+    head: ByteArray,
+    offset: Int,
+    frame: FrameHeader,
+  ): Boolean {
+    val frameLength = frameLengthBytes(head, offset, frame)
+    val next = offset + frameLength
+    if (next + 4 > head.size) return true // no room to falsify: accept
+    val nextFrame = decodeFrame(head, next) ?: return false
+    return nextFrame.versionMpeg1 == frame.versionMpeg1 &&
+      nextFrame.sampleRate == frame.sampleRate
+  }
+
+  /** The frame payload length advertised by the header at [offset]. */
+  private fun frameLengthBytes(
+    head: ByteArray,
+    offset: Int,
+    frame: FrameHeader,
+  ): Int {
+    val padding = (head[offset + 2].toInt() shr 1) and 1
+    val base = if (frame.versionMpeg1) 144 else 72
+    return base * frame.bitrateKbps * 1000 / frame.sampleRate + padding
   }
 
   private fun decodeFrame(

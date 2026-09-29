@@ -338,7 +338,15 @@ public class OnlinePlaybackCatalog(
       persistPosition(bookRef, position)
     }
     if (durationMs > 0L) {
-      recordMeasuredDuration(bookRef.source, bookRef.bookId, chapterRef.chapterId, durationMs)
+      // the player parsed the whole file: its duration is the ground truth
+      // and must replace a polluted estimate from an earlier head probe
+      recordMeasuredDuration(
+        source = bookRef.source,
+        bookId = bookRef.bookId,
+        chapterId = chapterRef.chapterId,
+        durationMs = durationMs,
+        persistOverExisting = true,
+      )
     }
   }
 
@@ -585,12 +593,19 @@ public class OnlinePlaybackCatalog(
    * next assembly of the book uses the correct value instead of the
    * source-reported or placeholder one. Keyed by the full chapter uri, so
    * every source keeps its own measurements.
+   *
+   * [persistOverExisting]: the player-reported duration is the ground truth
+   * and always overwrites; the head-probe estimate must only fill chapters
+   * without a duration - a false mpeg sync in the file head used to overwrite
+   * source-reported durations with garbage (a 10min chapter showing 15min)
+   * on every chapter switch after a cold start.
    */
   public fun recordMeasuredDuration(
     source: String,
     bookId: String,
     chapterId: String,
     durationMs: Long,
+    persistOverExisting: Boolean = false,
   ) {
     if (durationMs <= 0L) return
     val uri = OnlineUri.build(source, bookId, chapterId)
@@ -605,6 +620,7 @@ public class OnlinePlaybackCatalog(
           key = "$source::$bookId",
           chapterId = chapterId,
           durationSeconds = (durationMs / 1_000L).toInt(),
+          overwriteExisting = persistOverExisting,
         )
       } catch (e: CancellationException) {
         throw e

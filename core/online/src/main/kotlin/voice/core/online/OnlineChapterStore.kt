@@ -115,16 +115,24 @@ public class OnlineChapterStore(private val baseDir: File) {
     }
   }
 
-  /** Persists a measured duration for one chapter; false when nothing changed. */
+  /**
+   * Persists a measured duration for one chapter; false when nothing changed.
+   * With [overwriteExisting] false (head-probe estimates) a duration the
+   * source already reported is never touched - only the player-reported
+   * ground truth may overwrite it.
+   */
   public suspend fun updateChapterDuration(
     key: String,
     chapterId: String,
     durationSeconds: Int,
+    overwriteExisting: Boolean = false,
   ): Boolean {
     var changed = false
     val _ = update(key) { current ->
       current.map { chapter ->
-        if (chapter.id == chapterId && chapter.durationSeconds != durationSeconds) {
+        val target = chapter.id == chapterId &&
+          (overwriteExisting || chapter.durationSeconds <= 0)
+        if (target && chapter.durationSeconds != durationSeconds) {
           changed = true
           chapter.copy(durationSeconds = durationSeconds)
         } else {
