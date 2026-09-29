@@ -4,6 +4,8 @@
 Usage:
     python scripts/pack_jdr.py samples/itingshu itingshu.jdr
 """
+import json
+import re
 import sys
 import zipfile
 from pathlib import Path
@@ -25,7 +27,31 @@ def main() -> None:
                 sys.exit(f"非法文件名: {name}")
             z.write(path, name)
             print(f"  + {name} ({path.stat().st_size} bytes)")
+    validate(src, out)
     print(f"已生成 {out.resolve()} ({out.stat().st_size} bytes)")
+
+
+def validate(src: Path, out: Path) -> None:
+    """Catches package mistakes the app rejects at import time - most
+    importantly a script whose registerSource id no longer matches the
+    manifest (搜索报「无法连接在线书源」的常见原因)."""
+    with zipfile.ZipFile(out) as z:
+        manifest = json.loads(z.read("manifest.json").decode("utf-8"))
+        for source in manifest.get("sources", []):
+            script = source.get("script", "")
+            if script not in z.namelist():
+                sys.exit(f"manifest 引用的脚本不存在: {script}")
+            registered = re.search(
+                r"registerSource\(\{\s*\n?\s*id:\s*'([^']+)'",
+                z.read(script).decode("utf-8"),
+            )
+            if registered is None:
+                sys.exit(f"{script} 未调用 registerSource（缺少 id 注册）")
+            if registered.group(1) != source.get("id"):
+                sys.exit(
+                    f"{script} 注册的 id('{registered.group(1)}') 与 manifest 的"
+                    f" id('{source.get('id')}') 不一致 —— 请同步修改脚本内的 registerSource id"
+                )
 
 
 if __name__ == "__main__":
