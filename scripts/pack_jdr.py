@@ -34,7 +34,10 @@ def main() -> None:
 def validate(src: Path, out: Path) -> None:
     """Catches package mistakes the app rejects at import time - most
     importantly a script whose registerSource id no longer matches the
-    manifest (搜索报「无法连接在线书源」的常见原因)."""
+    manifest (搜索报「无法连接在线书源」的常见原因).
+
+    混淆过的脚本无法静态识别注册 id：此时跳过该检查并提示，id 的一致性
+    由引擎在导入/加载时兜底校验。"""
     with zipfile.ZipFile(out) as z:
         manifest = json.loads(z.read("manifest.json").decode("utf-8"))
         for source in manifest.get("sources", []):
@@ -43,10 +46,14 @@ def validate(src: Path, out: Path) -> None:
                 sys.exit(f"manifest 引用的脚本不存在: {script}")
             registered = re.search(
                 r"registerSource\(\{\s*\n?\s*id:\s*'([^']+)'",
-                z.read(script).decode("utf-8"),
+                z.read(script).decode("utf-8", errors="replace"),
             )
             if registered is None:
-                sys.exit(f"{script} 未调用 registerSource（缺少 id 注册）")
+                print(
+                    f"  ! {script}: 无法静态识别 registerSource id"
+                    "（混淆脚本？），跳过静态校验；引擎运行时仍会校验 id 一致性"
+                )
+                continue
             if registered.group(1) != source.get("id"):
                 sys.exit(
                     f"{script} 注册的 id('{registered.group(1)}') 与 manifest 的"
