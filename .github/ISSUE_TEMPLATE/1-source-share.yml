@@ -23,12 +23,12 @@ body:
   - type: textarea
     id: package
     attributes:
-      label: 接口源文件或链接
+      label: 接口源链接
       description: |
-        两种方式任选其一：
-        1. GitHub 不认 .jdr 后缀：把文件改名为 `.zip`（它本来就是 zip）直接拖进本输入框，下载的人把后缀改回 `.jdr` 即可导入
-        2. 把 `.jdr` 上传到任意可公开下载的地方（自己仓库的 Release、网盘等），粘贴直链
-      placeholder: "拖入改名为 .zip 的文件，或粘贴 .jdr 直链"
+        把 `.jdr` 上传到任意可公开下载的地方，粘贴直链即可，例如：
+        自己仓库的 Release（推荐，可随时更新）、网盘、个人页面等。
+        Issue 附件不支持 .jdr 文件，请勿直接拖文件。
+      placeholder: "粘贴 .jdr 直链"
     validations:
       required: true
 
