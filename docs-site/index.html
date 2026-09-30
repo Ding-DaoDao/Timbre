@@ -53,6 +53,7 @@
       </div>
       <div class="hero-meta">
         <span>最新版本 <b class="ver-latest">—</b></span>
+        <span id="dl-meta" style="display:none">累计下载 <b class="dl-total">—</b> 次</span>
         <span>平台 <b>Android</b></span>
         <span>许可 <b>GPL-3.0</b></span>
         <span>价格 <b>免费，无内购</b></span>
@@ -172,13 +173,27 @@
 
 <script>
 (function(){
-  fetch('https://api.github.com/repos/cq10086123/Timbre/releases/latest')
+  /* 一次请求同时取最新版本号与全版本累计下载量 */
+  function fill(version, total){
+    if(version) document.querySelectorAll('.ver-latest').forEach(function(el){ el.textContent = 'v' + version; });
+    var meta = document.getElementById('dl-meta');
+    var dl = document.querySelector('.dl-total');
+    if(meta && dl && total > 0){
+      dl.textContent = total.toLocaleString('zh-CN');
+      meta.style.display = '';
+    }
+  }
+  fetch('https://api.github.com/repos/cq10086123/Timbre/releases?per_page=100')
     .then(function(r){ if(!r.ok) throw 0; return r.json(); })
-    .then(function(d){
-      var v = (d.tag_name || '').replace(/^v/, '');
-      if(!v) return;
-      document.querySelectorAll('.ver-latest').forEach(function(el){ el.textContent = 'v' + v; });
-    }).catch(function(){ /* 保持「最新版」文案 */ });
+    .then(function(releases){
+      var version = '', total = 0;
+      (releases || []).forEach(function(r){
+        if(!version && r.tag_name) version = String(r.tag_name).replace(/^v/, '');
+        (r.assets || []).forEach(function(a){ total += a.download_count || 0; });
+      });
+      fill(version, total);
+    })
+    .catch(function(){ /* 拉取失败时保持原样，不打扰访客 */ });
 })();
 </script>
 </body>
