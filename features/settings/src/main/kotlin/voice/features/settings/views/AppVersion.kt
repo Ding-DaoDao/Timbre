@@ -11,12 +11,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import voice.core.ui.icons.VoiceIcons
+import voice.core.update.UpdateAvailable
 import voice.core.strings.R as StringsR
 
 @Composable
 internal fun AppVersion(
   appVersion: String,
-  updateAvailable: String?,
+  update: UpdateAvailable?,
   onClick: () -> Unit,
 ) {
   ListItem(
@@ -33,12 +34,12 @@ internal fun AppVersion(
     },
     supportingContent = {
       Text(
-        text = if (updateAvailable != null) {
-          stringResource(StringsR.string.settings_about_app_version_update_available, updateAvailable)
+        text = if (update != null) {
+          stringResource(StringsR.string.settings_about_app_version_update_available, update.versionName)
         } else {
           appVersion
         },
-        color = if (updateAvailable != null) {
+        color = if (update != null) {
           MaterialTheme.colorScheme.primary
         } else {
           LocalContentColor.current.copy(alpha = 0.5F)

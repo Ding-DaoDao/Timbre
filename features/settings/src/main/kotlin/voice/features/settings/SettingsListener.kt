@@ -35,6 +35,8 @@ interface SettingsListener {
   fun onlineSourceBaseUrlChanged(value: String)
   fun onlineSourceCredentialChanged(value: String)
   fun onAppVersionClick()
+  fun onUpdateDialogConfirm()
+  fun onUpdateDialogDismiss()
 
   fun openDeveloperMenu()
 
@@ -70,6 +72,8 @@ interface SettingsListener {
       override fun openExtensions() {}
       override fun setAutoRefreshWifi(checked: Boolean) {}
       override fun onAppVersionClick() {}
+      override fun onUpdateDialogConfirm() {}
+      override fun onUpdateDialogDismiss() {}
       override fun openDeveloperMenu() {}
     }
   }

@@ -2,6 +2,7 @@ package voice.features.settings
 
 import voice.core.data.ThemeColorScheme
 import voice.core.data.ThemeMode
+import voice.core.update.UpdateAvailable
 import java.time.LocalTime
 
 data class SettingsViewState(
@@ -27,7 +28,10 @@ data class SettingsViewState(
   val onlineSourceVerifyError: Int? = null,
   val showSupportDevelopment: Boolean,
   val kioskMode: Boolean,
-  val updateAvailable: String? = null,
+  /** Hidden for now: the row stays out of the list until this flips to true. */
+  val showOnlineSource: Boolean = false,
+  val availableUpdate: UpdateAvailable? = null,
+  val showUpdateDialog: Boolean = false,
 ) {
 
   enum class Dialog {

@@ -1,4 +1,4 @@
-package voice.features.bookOverview.views
+package voice.core.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,8 +19,13 @@ import voice.core.update.UpdateAvailable
 import voice.core.update.formatReleaseNotes
 import voice.core.strings.R as StringsR
 
+/**
+ * Shows what changed in the available release. Shared by the book overview
+ * screen (where it appears on its own) and the settings screen (where the
+ * version row opens it on demand).
+ */
 @Composable
-internal fun UpdateDialog(
+fun UpdateDialog(
   update: UpdateAvailable,
   onUpdateClick: () -> Unit,
   onDismissClick: () -> Unit,
