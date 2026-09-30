@@ -258,7 +258,6 @@
     <string name="settings.playback.bt_skip_chapter.title">Bluetooth prev/next skips chapters</string>
     <string name="settings.playback.import_parallelism.title">Import parallelism</string>
     <string name="settings.source_share.title">Shared sources</string>
-    <string name="settings.source_share.summary">Browse interface sources shared by the community and import them</string>
     <string name="settings.online_source.title">Online book source</string>
     <string name="settings.online_source.summary">Search and stream audiobooks from your own download server. Off by default.</string>
     <string name="settings.online_source.base_url_title">Server address</string>

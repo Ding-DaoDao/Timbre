@@ -190,9 +190,6 @@ private fun Settings(
               contentDescription = stringResource(StringsR.string.settings_source_share_title),
             )
           },
-          supportingContent = {
-            Text(stringResource(StringsR.string.settings_source_share_summary))
-          },
         ) {
           Text(stringResource(StringsR.string.settings_source_share_title))
         }
