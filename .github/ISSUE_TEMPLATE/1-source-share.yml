@@ -16,7 +16,7 @@ body:
     id: source-name
     attributes:
       label: 接口名称
-      placeholder: "例如：听世界"
+      placeholder: "随便填，中英文都行"
     validations:
       required: true
 
