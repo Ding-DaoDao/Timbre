@@ -230,6 +230,10 @@ class SettingsViewModel(
     navigator.goTo(Destination.Website("https://github.com/cq10086123/Timbre"))
   }
 
+  override fun openSourceShare() {
+    navigator.goTo(Destination.Website("https://cq10086123.github.io/Timbre/share.html"))
+  }
+
   override fun openSupportVoice() {
     navigator.goTo(Destination.SupportVoice)
   }

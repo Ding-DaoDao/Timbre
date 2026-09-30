@@ -181,6 +181,22 @@ private fun Settings(
           }
         }
       }
+      item {
+        ListItem(
+          modifier = Modifier.clickable { listener.openSourceShare() },
+          leadingContent = {
+            Icon(
+              imageVector = VoiceIcons.CollectionsBookmark,
+              contentDescription = stringResource(StringsR.string.settings_source_share_title),
+            )
+          },
+          supportingContent = {
+            Text(stringResource(StringsR.string.settings_source_share_summary))
+          },
+        ) {
+          Text(stringResource(StringsR.string.settings_source_share_title))
+        }
+      }
       if (viewState.onlineSourceEnabled) {
         item {
           ListItem(
