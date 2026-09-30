@@ -164,14 +164,72 @@ AI 会直接产出 `manifest.json` + 源脚本两个文件，按 [三步上手](
 1. 结论：通过 / 未通过，附各阶段实测数据（命中 X 本、Y 章、直链 HTTP 状态）
 2. 问题清单：每条 = 现象 → 原因 → 改动
 3. 修复后的完整脚本（不要省略任何行）；若改了 manifest.json 也一并给出
-4. 提醒我：改完要重新打包再导入——python scripts/pack_jdr.py 源目录 输出.jdr，
-   或把目录"里面的文件"（不是目录本身）压成 zip 改后缀 .jdr
+4. 提醒我：改完要重新打包再导入——直接用下方「AI 一键打包 .jdr」提示词，或
+   python scripts/pack_jdr.py 源目录 输出.jdr，或把目录"里面的文件"（不是目录本身）
+   压成 zip 改后缀 .jdr
 
 ========== 源脚本（和 manifest.json，如有）==========
 （粘贴在这里）
 
 ========== 测试关键词 ==========
 （例如：三体）
+```
+
+</details>
+
+## 📦 AI 一键打包 .jdr
+
+最后一步——不会压 zip、懒得装 Python？把下面的提示词给 AI：**能执行代码的 AI**（ChatGPT 代码  
+解释器 / Claude Code / ZCode 等）会直接产出可下载的 `.jdr` 文件；**纯聊天 AI** 打不出二进制包  
+（ZIP 含 CRC32 校验和，凭空生成必然损坏，提示词里已明令禁止它硬造），会退而求其次——给你  
+打包好的全部文件 + 一条你系统专属的一键命令（Windows 双击即用的 .bat / macOS 一行 zip 命令，  
+均为系统自带、零安装），运行一下就得到 `.jdr`。
+
+至此闭环齐了：🤖 [编写](#-ai-一键编写接口源) → 🧪 [验证](#-ai-一键验证接口源) → 📦 打包 → [导入](#三步上手)。
+
+<details>
+<summary><b>点开复制完整提示词</b></summary>
+
+```text
+你是 Timbre 播放器「接口源」打包助手。请把我提供的接口源（manifest.json + 脚本文件）
+打包成一个可直接导入播放器的 .jdr 文件；如果我只给了接口信息而没有文件，你先按
+规范补齐文件再打包。
+
+【.jdr 是什么】
+本质是 ZIP 改了后缀。包内根层必须直接是 manifest.json 和脚本文件——不能多套一层
+目录，否则导入时报"包内缺少 manifest.json"。
+
+【路线 A：你能执行代码或能产出文件】（ChatGPT 代码解释器 / Claude Code / ZCode 等）
+1. 建一个干净目录，写入 manifest.json 和全部脚本，文件名与 manifest.sources[].script
+   完全一致
+2. 打包任选其一：Python 的 zipfile 模块（把目录"里面的文件"写入 zip 根层，arcname
+   不带目录前缀）、系统 zip 命令、或语言自带的压缩库
+3. 把生成的 .jdr 交给我下载，或写到我能取到的路径
+4. 打包后自检：重新打开 zip，确认根层就是 manifest.json + 全部脚本（没有多套目录）、
+   manifest.json 能正常 JSON 解析、每个 sources[].script 在包内都存在
+
+【路线 B：你只能输出文本】（没有执行环境的聊天 AI）
+你打不出二进制 zip（ZIP 含 CRC32 校验和与字节偏移，凭空生成必然损坏）——不要尝试
+直接输出 .jdr 或它的 base64。改为给我两样东西：
+1. 完整的 manifest.json 和每个脚本文件，逐个标注保存文件名
+2. 针对我操作系统的"一键打包"产物（我只想要对应我系统的那一种）：
+   - Windows：一个双击即可运行的 .bat（用 PowerShell 的 Compress-Archive 把该目录里的
+     manifest.json 和脚本压成 zip——它会强制 .zip 后缀，压完重命名为 .jdr），或一条
+     可直接粘贴进 PowerShell 窗口的等价命令
+   - macOS / Linux：一行终端命令，例如 cd 进目录后 zip -X ../包名.jdr manifest.json *.js
+     （系统自带 zip）
+   并说明清楚：各文件分别存成什么名字、放进哪个文件夹、在哪运行、运行后去哪拿 .jdr
+
+【打包校验规则（两条路线都必须执行）】
+- 包 id：小写字母/数字开头，仅含 a-z 0-9 . _ -，2-64 位
+- 源 id：全局唯一，且必须与脚本里 registerSource({ id }) 完全一致（打包前打开脚本核对）
+- capabilities 至少包含脚本实际实现的阶段；version 用 1.0.0（以后同名包更新导入时必须更高）
+- 多个源可合一包：sources 数组多项，每个 script 文件都要放进包里
+- 仅当源站证书链损坏时加 "allowInsecure": true，其余字段保持默认
+
+【我提供的内容】
+（粘贴 manifest.json 和各脚本文件；或描述源站接口信息让我先生成再打包；
+并注明你的操作系统：Windows / macOS / Linux）
 ```
 
 </details>
