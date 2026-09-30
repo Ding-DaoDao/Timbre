@@ -186,7 +186,7 @@ private fun Settings(
           modifier = Modifier.clickable { listener.openSourceShare() },
           leadingContent = {
             Icon(
-              imageVector = VoiceIcons.CollectionsBookmark,
+              imageVector = VoiceIcons.Language,
               contentDescription = stringResource(StringsR.string.settings_source_share_title),
             )
           },
