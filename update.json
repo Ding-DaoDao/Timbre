@@ -1,6 +1,6 @@
 {
-  "versionName": "3.5.336",
-  "versionCode": 67,
+  "versionName": "3.5.337",
+  "versionCode": 68,
   "releaseUrl": "https://github.com/cq10086123/Timbre/releases/latest",
-  "releaseNotes": "## 🛠️ 本次迭代内容（v3.5.336）\n\n**修复在线书章节时长被错误测量值污染的问题**（症状：切换/播放某集后，该集时长显示异常——如 10 分钟的章节显示成 15 分钟，且重启后依然是错的）。\n\n根因（ADB 日志 + 本地引擎实测定位）：冷启动后切换章节会触发音频头部探测，文件头部二进制字节里的假 MPEG 帧同步被当成第一帧，按错误码率估算出垃圾时长并无条件覆盖持久化——切到哪集污染哪集。\n\n- 🧮 **时长探测器增加帧链校验**：真帧的下一帧必然出现在其声明的帧长处且版本/采样率一致，假同步几乎不成链，扫描自动跳过\n- 🖊️ **测量写入分级**：头部探测的估算值只允许填充无时长的章节，不再覆盖源站已报的时长；播放器解析出的真实时长（权威值）才可覆盖\n- ♻️ **自愈**：此前被污染的章节，更新后播放一次即被播放器真实时长修正\n\n**Full Changelog**: https://github.com/cq10086123/Timbre/compare/v3.5.335...v3.5.336"
+  "releaseNotes": "<!-- Release notes generated using configuration in .github/release.yml at 1a19e0ffe8fa5b9b557f0eb7abba42a2cec7deb6 -->\n\n\n\n**Full Changelog**: https://github.com/cq10086123/Timbre/compare/v3.5.336...v3.5.337"
 }
