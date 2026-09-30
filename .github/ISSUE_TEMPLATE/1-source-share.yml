@@ -1,105 +1,46 @@
 name: 接口源分享
-description: 分享你写的 .jdr 接口源，或申请收录到示例集
+description: 分享你写的 .jdr 接口源——拖进来就行
 title: "[接口源] "
 labels: [ "source-share" ]
 body:
   - type: markdown
     attributes:
       value: |
-        欢迎分享接口源！提交前请先看清三条边界：
+        欢迎分享接口源！只需记住一条边界：**只分享 `.jdr` 包或它的源码**，
+        不要上传音频文件，也不要贴你个人的服务器地址和密钥。
 
-        - 只分享**接口源本身**（`.jdr` 包或它的源码）。**不要上传音频文件**，也不要贴受版权保护的内容；
-        - **不要**把私人服务器地址、鉴权密钥、Cookie 写进来——这些应该留给用户自己在「设置 → 接口源」里填；
-        - 分享即表示你同意它在本仓库 Issues 中公开，并可能被收录进
-          [`samples/`](https://github.com/cq10086123/Timbre/tree/main/samples) 作为示例（收录前会再跟你确认）。
-
-        想自己写一个？看[接口源开发套件](https://github.com/cq10086123/Timbre/blob/main/samples/README.md)和[开发指南](https://github.com/cq10086123/Timbre/blob/main/samples/extension-dev-guide.md)，
+        想自己写一个？看[接口源开发套件](https://github.com/cq10086123/Timbre/blob/main/samples/README.md)，
         三步就能打出 `.jdr` 包。
 
   - type: input
     id: source-name
     attributes:
-      label: 接口源名称
-      description: manifest.json 里的 name，就是用户在 App 里看到的源名称
-      placeholder: "例如：示例书源"
-    validations:
-      required: true
-
-  - type: input
-    id: source-id
-    attributes:
-      label: 扩展包 id
-      description: manifest.json 里的 id，用于区分和卸载扩展包，避免和别人重名
-      placeholder: "例如：dev.example.demo"
-    validations:
-      required: true
-
-  - type: textarea
-    id: intro
-    attributes:
-      label: 功能简介
-      description: 能搜到什么内容、支持哪些能力（search / chapters / audio）、有什么限制
-      placeholder: |
-        例如：支持按书名搜索、返回章节列表、解析播放直链；需要用户自备服务器地址。
-        不支持分页，每次最多返回 20 条。
+      label: 接口名称
+      placeholder: "例如：听世界"
     validations:
       required: true
 
   - type: textarea
     id: package
     attributes:
-      label: 接口源文件或源码
-      description: |
-        直接把 `.jdr` 文件拖进输入框（GitHub 会作为附件上传），
-        或者给出源码仓库 / 发布页链接。只给源码也行，注明打包方式即可。
-    validations:
-      required: true
-
-  - type: input
-    id: user-config
-    attributes:
-      label: 需要用户配置什么
-      description: 比如服务器地址、鉴权密钥、自定义请求头（http 明文源需要 manifest 里 allowInsecure 为 true）；没有就写「无需配置」
-      placeholder: "例如：在「设置 → 接口源」里填写自己的服务器地址"
-    validations:
-      required: true
-
-  - type: dropdown
-    id: tested
-    attributes:
-      label: 实测情况
-      options:
-        - 已在真机上完整跑通（搜索、章节、播放）
-        - 部分功能可用
-        - 还没实测，仅供参考
-    validations:
-      required: true
-
-  - type: input
-    id: tested-version
-    attributes:
-      label: 在哪个版本上测的
-      description: 在「设置 → 软件版本」里查看
-      placeholder: "例如：3.2.523"
+      label: 接口源文件或链接
+      description: 直接把 `.jdr` 文件拖进输入框即可；也可以贴直链、源码仓库或发布页链接
+      placeholder: "拖入 .jdr 文件，或粘贴链接"
     validations:
       required: true
 
   - type: textarea
-    id: notes
+    id: about
     attributes:
-      label: 其他说明
-      description: 已知问题、后续计划、依赖的环境等
+      label: 简介（可选）
+      description: 能搜到什么内容、有没有使用限制、需要用户配置什么——没有就不用填
     validations:
       required: false
 
   - type: checkboxes
     id: confirm
     attributes:
-      label: 分享前确认
+      label: 确认
       options:
-        - label: 这个接口源是我自己写的，或我有权分享它
+        - label: 这是我自己写的或有权分享的接口源，不含音频文件，也不含我个人的服务器地址和密钥
           required: true
-        - label: 里面不含音频文件或受版权保护的内容，也没有我个人的服务器地址、密钥
-          required: true
-        - label: 我同意它被收录进 samples 示例集（可选，不勾选也欢迎分享）
-          required: false

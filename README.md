@@ -33,6 +33,10 @@ https://raw.githubusercontent.com/cq10086123/Timbre/refs/heads/main/samples/Timb
 
 > 也可以点上方下载链接进入文件页手动下载 `.jdr`，再用「导入 .jdr 文件」选择它。
 
+> ⚠️ **注意**：部分接口源有请求限制，请勿频繁切换；部分接口支持缓存，因接口而异。
+
+> 🙌 **欢迎制作并分享你的接口源**：[点此一键填写分享](https://github.com/cq10086123/Timbre/issues/new?template=1-source-share.yml) · [看看大家分享的接口](https://github.com/cq10086123/Timbre/issues?q=label%3A%22source-share%22)
+
 ---
 
 ## 🎧 多种书源，一处书架
