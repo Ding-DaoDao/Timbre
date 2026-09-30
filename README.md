@@ -19,6 +19,9 @@
 
 Timbre（听书）是一款免费开源的 Android 有声书播放器，为中文听书场景深度优化：本地音频（MP3 / M4B / FLAC 等）直接导入，WebDAV / NAS 远程书库在线收听，还支持自定义 `.jdr` 接口源——搜索、章节、播放直链全部在本机完成。断点续播精确到秒，千集大书库依旧顺滑，无账号、无广告、无追踪。
 
+> [!TIP]
+> **只要你有接口，就能一键生成接口源**：把 [AI 提示词](samples/README.md#-ai-一键编写接口源)复制给任意 AI（ChatGPT / Claude / Gemini 等），附上抓包到的接口信息，AI 直接写好 `manifest.json` + 源脚本；接着还能让 AI [实测验证](samples/README.md#-ai-一键验证接口源)、[一键打包](samples/README.md#-ai-一键打包-jdr)成 `.jdr`。不会编程、零开发环境也能做源，三段提示词一路到导入。
+
 ## 功能特性
 
 **播放体验**
@@ -54,7 +57,7 @@ https://raw.githubusercontent.com/cq10086123/Timbre/refs/heads/main/samples/Timb
 
 > ⚠️ 注意：部分接口源有请求限制，请勿频繁切换；部分接口支持缓存，因接口而异。
 
-🙌 欢迎制作并分享你的接口源：[一键填写分享](https://github.com/cq10086123/Timbre/issues/new?template=1-source-share.yml) · [浏览大家分享的接口](https://github.com/cq10086123/Timbre/issues?q=label%3A%22source-share%22)。想自己动手写？[接口源开发套件](samples/README.md)提供模板、开发指南与打包脚本，三步打包出一个 `.jdr`。
+🙌 欢迎制作并分享你的接口源：[一键填写分享](https://github.com/cq10086123/Timbre/issues/new?template=1-source-share.yml) · [浏览大家分享的接口](https://github.com/cq10086123/Timbre/issues?q=label%3A%22source-share%22)。想自己做源？不用会编程——[接口源开发套件](samples/README.md)顶部有三段现成 AI 提示词：**编写 → 验证 → 打包**，复制给任意 AI，从你手上的接口一路做到 `.jdr`；套件里也保留了传统路线（空白模板、开发指南、打包脚本）。
 
 ## 使用小贴士
 
