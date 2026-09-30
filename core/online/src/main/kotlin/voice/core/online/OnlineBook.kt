@@ -30,6 +30,12 @@ public data class OnlineBook(
   val skipIntroMs: Long = 0L,
   /** Milliseconds to cut off the end of every chapter of this book. 0 = off. */
   val skipOutroMs: Long = 0L,
+  /** Whether silence skipping is enabled while playing this book. */
+  val skipSilence: Boolean = false,
+  /** The playback speed persisted for this book. 1f = normal. */
+  val playbackSpeed: Float = 1f,
+  /** The volume gain persisted for this book in decibels. 0f = none. */
+  val gain: Float = 0f,
 ) {
   /** Stable unique key: source and bookId namespaces are independent per source. */
   public val key: String

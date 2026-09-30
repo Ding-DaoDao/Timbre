@@ -11,6 +11,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.mockk.Runs
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -30,9 +31,12 @@ import voice.core.data.Chapter
 import voice.core.data.ChapterId
 import voice.core.data.ChapterMark
 import voice.core.data.MarkData
+import voice.core.data.repo.BookRepository
 import voice.core.logging.api.LogWriter
 import voice.core.logging.api.Logger
+import voice.core.online.OnlinePlaybackCatalog
 import voice.core.playback.MemoryDataStore
+import voice.core.playback.misc.Decibel
 import voice.core.playback.session.MediaItemProvider
 import voice.core.playback.session.realChapterId
 import voice.core.playback.session.search.book
@@ -100,12 +104,18 @@ class VoicePlayerTest {
   private val bookId = BookId(Uuid.random().toString())
   private lateinit var currentBook: Book
   private val sleepTimer = FakeSleepTimer()
+  private val repo = mockk<BookRepository> {
+    coEvery { get(bookId) } answers { currentBook }
+    coEvery { updateBook(any(), any()) } just Runs
+  }
+  private val onlinePlaybackCatalog = mockk<OnlinePlaybackCatalog> {
+    coEvery { book(any()) } returns null
+    every { isOnlineBookId(any()) } returns false
+    coEvery { onlineCover(any()) } returns null
+  }
   private val player = VoicePlayer(
     player = internalPlayer,
-    repo = mockk {
-      coEvery { get(bookId) } answers { currentBook }
-      coEvery { updateBook(any(), any()) } just Runs
-    },
+    repo = repo,
     currentBookStoreId = mockk {
       every { data } returns flowOf(bookId)
     },
@@ -116,11 +126,7 @@ class VoicePlayerTest {
     autoRewindAmountStore = autoRewindAmountStore,
     scope = scope,
     mediaItemProvider = mediaItemProvider,
-    onlinePlaybackCatalog = mockk {
-      coEvery { book(any()) } returns null
-      every { isOnlineBookId(any()) } returns false
-      coEvery { onlineCover(any()) } returns null
-    },
+    onlinePlaybackCatalog = onlinePlaybackCatalog,
     imageFileProvider = mockk(),
     volumeGain = mockk(relaxed = true),
     sleepTimer = sleepTimer,
@@ -500,6 +506,36 @@ class VoicePlayerTest {
     assertEquals(expected = currentMediaItemIndex, actual = this.currentMediaItemIndex)
     assertEquals(expected = currentPosition, actual = this.currentPosition)
     return this
+  }
+
+  @Test
+  fun `per book settings of an online book persist to the online shelf`() = scope.runTest {
+    every { onlinePlaybackCatalog.isOnlineBookId(bookId) } returns true
+    coEvery { onlinePlaybackCatalog.setSkipSilence(any(), any()) } just Runs
+    coEvery { onlinePlaybackCatalog.setPlaybackSpeed(any(), any()) } just Runs
+    coEvery { onlinePlaybackCatalog.setGain(any(), any()) } just Runs
+
+    player.setSkipSilenceEnabled(true)
+    player.setPlaybackSpeed(1.5f)
+    player.setGain(Decibel(3f))
+    scope.advanceUntilIdle()
+
+    coVerify {
+      onlinePlaybackCatalog.setSkipSilence(bookId, true)
+      onlinePlaybackCatalog.setPlaybackSpeed(bookId, 1.5f)
+      onlinePlaybackCatalog.setGain(bookId, 3f)
+    }
+    coVerify(exactly = 0) { repo.updateBook(any(), any()) }
+  }
+
+  @Test
+  fun `per book settings of a local book persist to the room content`() = scope.runTest {
+    player.setSkipSilenceEnabled(true)
+    player.setPlaybackSpeed(1.5f)
+    player.setGain(Decibel(3f))
+    scope.advanceUntilIdle()
+
+    coVerify(exactly = 3) { repo.updateBook(bookId, any()) }
   }
 
   private class FakeSleepTimer : SleepTimer {

@@ -19,11 +19,11 @@ import voice.core.data.Bookmark
 import voice.core.data.Chapter
 import voice.core.data.KioskModeDemoData
 import voice.core.data.markForPosition
-import voice.core.data.repo.BookRepository
 import voice.core.data.repo.BookmarkRepo
 import voice.core.data.store.CurrentBookStore
 import voice.core.featureflag.FeatureFlag
 import voice.core.featureflag.KioskModeFeatureFlagQualifier
+import voice.core.playback.CurrentBookResolver
 import voice.core.playback.PlayerController
 import voice.core.playback.playstate.PlayStateManager
 import voice.core.strings.R
@@ -40,7 +40,7 @@ import kotlin.uuid.Uuid
 class BookmarkViewModel(
   @CurrentBookStore
   private val currentBookStore: DataStore<BookId?>,
-  private val repo: BookRepository,
+  private val currentBookResolver: CurrentBookResolver,
   private val bookmarkRepo: BookmarkRepo,
   private val playStateManager: PlayStateManager,
   private val playerController: PlayerController,
@@ -65,7 +65,9 @@ class BookmarkViewModel(
     if (kioskMode) return kioskModeViewState()
 
     LaunchedEffect(bookId) {
-      val book = repo.get(bookId)
+      // the resolver falls back to the online catalog: online books have no
+      // room row, and the bookmark screen must still show their bookmarks
+      val book = currentBookResolver.book(bookId)
       if (book != null) {
         bookmarks = bookmarkRepo.bookmarks(book.content)
           .sortedByDescending { it.addedAt }
@@ -74,7 +76,7 @@ class BookmarkViewModel(
     }
     return BookmarkViewState(
       bookmarks = bookmarks.map { bookmark ->
-        val currentChapter = chapters.single { it.id == bookmark.chapterId }
+        val currentChapter = chapters.firstOrNull { it.id == bookmark.chapterId }
         val bookmarkTitle = bookmark.title
         val title: String = when {
           bookmark.setBySleepTimer -> {
@@ -92,7 +94,7 @@ class BookmarkViewModel(
             }
           }
           !bookmarkTitle.isNullOrEmpty() -> bookmarkTitle
-          else -> currentChapter.markForPosition(bookmark.time).name ?: ""
+          else -> currentChapter?.markForPosition(bookmark.time)?.name ?: ""
         }
 
         BookmarkItemViewState(
@@ -137,7 +139,7 @@ class BookmarkViewModel(
 
     scope.launch {
       currentBookStore.updateData { bookId }
-      val book = repo.get(bookId) ?: return@launch
+      val book = currentBookResolver.book(bookId) ?: return@launch
       playerController.setPosition(
         book = book,
         chapterId = bookmark.chapterId,
@@ -172,7 +174,7 @@ class BookmarkViewModel(
 
   fun addBookmark(name: String) {
     scope.launch {
-      val book = repo.get(bookId) ?: return@launch
+      val book = currentBookResolver.book(bookId) ?: return@launch
       val newBookmark = bookmarkRepo.addBookmarkAtBookPosition(
         book = book,
         title = name,

@@ -212,6 +212,9 @@ public class OnlineSourceService internal constructor(
           positionMs = existing.positionMs,
           skipIntroMs = existing.skipIntroMs,
           skipOutroMs = existing.skipOutroMs,
+          skipSilence = existing.skipSilence,
+          playbackSpeed = existing.playbackSpeed,
+          gain = existing.gain,
         )
       }
       // a fresh copy without chapters must not wipe the stored list: it would

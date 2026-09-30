@@ -182,22 +182,34 @@ public class OnlinePlaybackCatalog(
     }
   }
 
+  /**
+   * Persists [transform] onto the online book everywhere it lives: the pending
+   * and assembled in-memory copies and the shelf DataStore. The per-book
+   * playback settings (skip intro/outro, skip silence, speed, gain) of an
+   * online book live here - the book has no Room row to persist them to.
+   */
+  private suspend fun mutatePersistedBook(
+    bookId: BookId,
+    transform: (OnlineBook) -> OnlineBook,
+  ) {
+    val bookRef = OnlineUri.parseBookUri(bookId.value) ?: return
+    pendingBooks[bookRef.key]?.let { pendingBooks[bookRef.key] = transform(it) }
+    assembledBooks[bookRef.key]?.let { assembledBooks[bookRef.key] = transform(it) }
+    runCatching {
+      booksStore.updateData { books ->
+        books.map { book ->
+          if (book.key == bookRef.key) transform(book) else book
+        }
+      }
+    }.onFailure { Logger.w("Failed to persist an online book setting of ${bookRef.key}: $it") }
+  }
+
   /** Persists the intro skip of an online book (in milliseconds). */
   public suspend fun setSkipIntro(
     bookId: BookId,
     skipMs: Long,
   ) {
-    val bookRef = OnlineUri.parseBookUri(bookId.value) ?: return
-    val value = skipMs.coerceAtLeast(0L)
-    pendingBooks[bookRef.key]?.let { pendingBooks[bookRef.key] = it.copy(skipIntroMs = value) }
-    assembledBooks[bookRef.key]?.let { assembledBooks[bookRef.key] = it.copy(skipIntroMs = value) }
-    runCatching {
-      booksStore.updateData { books ->
-        books.map { book ->
-          if (book.key == bookRef.key) book.copy(skipIntroMs = value) else book
-        }
-      }
-    }.onFailure { Logger.w("Failed to persist the online skip intro of ${bookRef.key}: $it") }
+    mutatePersistedBook(bookId) { it.copy(skipIntroMs = skipMs.coerceAtLeast(0L)) }
   }
 
   /** Persists the outro skip of an online book (in milliseconds). */
@@ -205,17 +217,31 @@ public class OnlinePlaybackCatalog(
     bookId: BookId,
     skipMs: Long,
   ) {
-    val bookRef = OnlineUri.parseBookUri(bookId.value) ?: return
-    val value = skipMs.coerceAtLeast(0L)
-    pendingBooks[bookRef.key]?.let { pendingBooks[bookRef.key] = it.copy(skipOutroMs = value) }
-    assembledBooks[bookRef.key]?.let { assembledBooks[bookRef.key] = it.copy(skipOutroMs = value) }
-    runCatching {
-      booksStore.updateData { books ->
-        books.map { book ->
-          if (book.key == bookRef.key) book.copy(skipOutroMs = value) else book
-        }
-      }
-    }.onFailure { Logger.w("Failed to persist the online skip outro of ${bookRef.key}: $it") }
+    mutatePersistedBook(bookId) { it.copy(skipOutroMs = skipMs.coerceAtLeast(0L)) }
+  }
+
+  /** Persists whether silence skipping is enabled for an online book. */
+  public suspend fun setSkipSilence(
+    bookId: BookId,
+    skipSilence: Boolean,
+  ) {
+    mutatePersistedBook(bookId) { it.copy(skipSilence = skipSilence) }
+  }
+
+  /** Persists the playback speed of an online book. */
+  public suspend fun setPlaybackSpeed(
+    bookId: BookId,
+    speed: Float,
+  ) {
+    mutatePersistedBook(bookId) { it.copy(playbackSpeed = speed) }
+  }
+
+  /** Persists the volume gain of an online book in decibels. */
+  public suspend fun setGain(
+    bookId: BookId,
+    gain: Float,
+  ) {
+    mutatePersistedBook(bookId) { it.copy(gain = gain) }
   }
 
   /**
@@ -501,8 +527,8 @@ public class OnlinePlaybackCatalog(
 
     val content = BookContent(
       id = bookId,
-      playbackSpeed = 1f,
-      skipSilence = false,
+      playbackSpeed = onlineBook.playbackSpeed,
+      skipSilence = onlineBook.skipSilence,
       isActive = true,
       lastPlayedAt = Instant.ofEpochMilli(onlineBook.addedAt),
       author = onlineBook.author.ifBlank { null },
@@ -512,7 +538,7 @@ public class OnlinePlaybackCatalog(
       currentChapter = chapterIds[startIndex],
       positionInChapter = startPosition.coerceAtLeast(0L),
       cover = null,
-      gain = 0f,
+      gain = onlineBook.gain,
       genre = null,
       narrator = null,
       series = null,
@@ -553,8 +579,8 @@ public class OnlinePlaybackCatalog(
       ?.takeIf { it >= 0 }
     val content = BookContent(
       id = bookId,
-      playbackSpeed = 1f,
-      skipSilence = false,
+      playbackSpeed = onlineBook.playbackSpeed,
+      skipSilence = onlineBook.skipSilence,
       isActive = false,
       lastPlayedAt = Instant.ofEpochMilli(onlineBook.addedAt),
       author = onlineBook.author.ifBlank { null },
@@ -564,7 +590,7 @@ public class OnlinePlaybackCatalog(
       currentChapter = chapterIds[persistedIndex ?: 0],
       positionInChapter = persistedIndex?.let { onlineBook.positionMs }?.coerceAtLeast(0L) ?: 0L,
       cover = null,
-      gain = 0f,
+      gain = onlineBook.gain,
       genre = null,
       narrator = null,
       series = null,

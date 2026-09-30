@@ -386,20 +386,29 @@ class OnlinePlaybackCatalogTest {
   }
 
   @Test
-  fun `skip settings persist and surface in the synthesized book`() = runTest {
+  fun `per book settings persist and surface in the synthesized book`() = runTest {
     val store = FakeBooksStore(listOf(shelfBook()))
     val catalog = OnlinePlaybackCatalog(service, store, chapterStore)
 
     catalog.setSkipIntro(bookId(), 5_000L)
     catalog.setSkipOutro(bookId(), 7_000L)
+    catalog.setSkipSilence(bookId(), true)
+    catalog.setPlaybackSpeed(bookId(), 1.5f)
+    catalog.setGain(bookId(), 3.5f)
 
     val stored = store.data.first().single()
     assertEquals(5_000L, stored.skipIntroMs)
     assertEquals(7_000L, stored.skipOutroMs)
+    assertTrue(stored.skipSilence)
+    assertEquals(1.5f, stored.playbackSpeed)
+    assertEquals(3.5f, stored.gain)
     coEvery { service.shelfBook("A::$BOOK_ID") } returns stored
     val book = assertNotNull(catalog.book(bookId()))
     assertEquals(5_000L, book.content.skipIntro)
     assertEquals(7_000L, book.content.skipOutro)
+    assertTrue(book.content.skipSilence)
+    assertEquals(1.5f, book.content.playbackSpeed)
+    assertEquals(3.5f, book.content.gain)
   }
 
   /**

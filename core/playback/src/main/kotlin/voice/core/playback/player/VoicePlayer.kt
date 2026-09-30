@@ -488,7 +488,12 @@ class VoicePlayer(
           prepareBook(mediaId.id)
         } ?: return@measureTime
         player.setPlaybackSpeed(prepared.book.content.playbackSpeed)
-        setSkipSilenceEnabled(prepared.book.content.skipSilence)
+        // apply directly instead of through setSkipSilenceEnabled: that
+        // override persists the value, which would rewrite the shelf on
+        // every prepare with the value just read from it
+        if (player is ExoPlayer) {
+          player.skipSilenceEnabled = prepared.book.content.skipSilence
+        }
         volumeGain.gain = Decibel(prepared.book.content.gain)
         player.setMediaItems(
           prepared.mediaItems,
@@ -652,13 +657,25 @@ class VoicePlayer(
   override fun setPlaybackSpeed(speed: Float) {
     super.setPlaybackSpeed(speed)
     scope.launch {
-      updateBook { it.copy(playbackSpeed = speed) }
+      val bookId = currentBookStoreId.data.first()
+      // online books have no room row: their values live on the online shelf
+      if (bookId != null && onlinePlaybackCatalog.isOnlineBookId(bookId)) {
+        onlinePlaybackCatalog.setPlaybackSpeed(bookId, speed)
+      } else {
+        updateBook { it.copy(playbackSpeed = speed) }
+      }
     }
   }
 
   fun setSkipSilenceEnabled(enabled: Boolean) {
     scope.launch {
-      updateBook { it.copy(skipSilence = enabled) }
+      val bookId = currentBookStoreId.data.first()
+      // online books have no room row: their values live on the online shelf
+      if (bookId != null && onlinePlaybackCatalog.isOnlineBookId(bookId)) {
+        onlinePlaybackCatalog.setSkipSilence(bookId, enabled)
+      } else {
+        updateBook { it.copy(skipSilence = enabled) }
+      }
     }
     if (player is ExoPlayer) {
       player.skipSilenceEnabled = enabled
@@ -668,7 +685,13 @@ class VoicePlayer(
   fun setGain(gain: Decibel) {
     volumeGain.gain = gain
     scope.launch {
-      updateBook { it.copy(gain = gain.value) }
+      val bookId = currentBookStoreId.data.first()
+      // online books have no room row: their values live on the online shelf
+      if (bookId != null && onlinePlaybackCatalog.isOnlineBookId(bookId)) {
+        onlinePlaybackCatalog.setGain(bookId, gain.value)
+      } else {
+        updateBook { it.copy(gain = gain.value) }
+      }
     }
   }
 
