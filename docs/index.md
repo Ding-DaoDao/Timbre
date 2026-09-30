@@ -13,7 +13,7 @@ Timbre 把你自己的有声书文件变成一个安静、顺手的听书库：�
 [:material-github: &nbsp;GitHub 仓库](https://github.com/cq10086123/Timbre){ .md-button }
 
 <div class="timbre-screenshots">
-  <img src="screenshots/shelf-cn.png" alt="Timbre 书架" />
+  <img src="screenshots/shot-shelf.png" alt="Timbre 书架" />
 </div>
 
 ## 为什么选择 Timbre？

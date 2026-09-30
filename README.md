@@ -12,11 +12,9 @@
 </div>
 
 <p align="center">
-  <img alt="首次导入" width="19%" src="docs/screenshots/onboarding-cn.png" />
-  <img alt="书库界面" width="19%" src="docs/screenshots/shelf-cn.png" />
-  <img alt="播放界面" width="19%" src="docs/screenshots/player-cn.png" />
-  <img alt="WebDAV 服务器" width="19%" src="docs/screenshots/webdav-servers-cn.png" />
-  <img alt="WebDAV 浏览导入" width="19%" src="docs/screenshots/webdav-browse-cn.png" />
+  <img alt="书架" width="27%" src="docs/screenshots/shot-shelf.png" />
+  <img alt="播放界面" width="27%" src="docs/screenshots/shot-player.png" />
+  <img alt="接口源管理" width="27%" src="docs/screenshots/shot-extensions.png" />
 </p>
 
 ## 🧩 接口源一键导入
