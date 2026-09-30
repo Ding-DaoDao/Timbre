@@ -19,6 +19,20 @@
   <img alt="WebDAV 浏览导入" width="19%" src="docs/screenshots/webdav-browse-cn.png" />
 </p>
 
+## 🧩 接口源一键导入
+
+不想自己打包？直接导入现成的接口源合集（哔哩听书 等），导入即用：
+
+**[⬇️ 下载接口源合集 Timbre.jdr](https://github.com/cq10086123/Timbre/blob/main/samples/Timbre.jdr)**
+
+**在 App 内导入**：`设置 → 接口源 → 从链接导入`，粘贴下面这条直链即可（代码块右上角有一键复制按钮）：
+
+```
+https://raw.githubusercontent.com/cq10086123/Timbre/refs/heads/main/samples/Timbre.jdr
+```
+
+> 也可以点上方下载链接进入文件页手动下载 `.jdr`，再用「导入 .jdr 文件」选择它。
+
 ---
 
 ## 🎧 多种书源，一处书架
@@ -46,6 +60,7 @@ Timbre 把「本地文件、NAS、在线源、自定义接口」统合成一个�
 
 ### 🧩 自定义接口源（.jdr 扩展）
 
+- **懒人直达**：[下载现成接口源合集](https://github.com/cq10086123/Timbre/blob/main/samples/Timbre.jdr)，或在首页复制直链后从 App 内「从链接导入」
 - 想听的书源不在列表里？导入 `.jdr` 接口源包，**搜索 / 章节 / 播放直链**全部本地完成
 - 脚本由播放器内置 QuickJS 沙箱在手机上执行，请求从**你自己的 IP** 直连源站，不经任何中间服务器
 - 支持从文件或链接导入，一个包可封装多个接口源，按源一键启停、随时更新卸载
