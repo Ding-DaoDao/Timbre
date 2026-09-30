@@ -16,7 +16,11 @@ import voice.core.common.DispatcherProvider
 import voice.core.data.store.UpdateDismissedStore
 import voice.core.data.store.UpdateLastCheckStore
 
-data class UpdateAvailable(val versionName: String)
+data class UpdateAvailable(
+  val versionName: String,
+  /** The release notes (markdown) of the new version, or null when unknown. */
+  val releaseNotes: String? = null,
+)
 
 @SingleIn(AppScope::class)
 @Inject
@@ -58,17 +62,17 @@ class UpdateNotifier(
     // retry on every single start
     lastCheckStore.updateData { today }
 
-    val latest = updateChecker.latestVersion() ?: return
+    val latest = updateChecker.latestRelease() ?: return
     val current = appInfoProvider.versionName
-    if (!isNewer(current, latest)) {
+    if (!isNewer(current, latest.versionName)) {
       return
     }
-    if (latest == dismissedStore.data.first()) {
+    if (latest.versionName == dismissedStore.data.first()) {
       // the user saw this release and pressed cancel, so stay quiet until a
       // newer one is published
       return
     }
-    _update.value = UpdateAvailable(latest)
+    _update.value = UpdateAvailable(latest.versionName, latest.releaseNotes)
   }
 
   /** Closes the prompt for the shown release without remembering it as dismissed. */

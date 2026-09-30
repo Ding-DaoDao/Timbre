@@ -89,14 +89,19 @@ jobs:
             --target "$GITHUB_SHA"
 
       - name: 更新 update.json 供应用内检查更新
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cat > update.json <<EOF
-          {
-            "versionName": "${{ inputs.versionName }}",
-            "versionCode": ${{ steps.ver.outputs.versionCode }},
-            "releaseUrl": "https://github.com/cq10086123/Timbre/releases/latest"
-          }
-          EOF
+          # the in-app update dialog renders the release notes: fetch the body
+          # the release was created with (--generate-notes) and embed it. jq
+          # escapes newlines and quotes so update.json stays valid JSON
+          NOTES=$(gh release view "v${{ inputs.versionName }}" --json body -q .body)
+          jq -n \
+            --arg versionName "${{ inputs.versionName }}" \
+            --argjson versionCode "${{ steps.ver.outputs.versionCode }}" \
+            --arg releaseUrl "https://github.com/cq10086123/Timbre/releases/latest" \
+            --arg releaseNotes "$NOTES" \
+            '{versionName: $versionName, versionCode: $versionCode, releaseUrl: $releaseUrl, releaseNotes: $releaseNotes}' > update.json
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add update.json
