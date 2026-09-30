@@ -4,7 +4,8 @@
 
 不想手写？把下面的提示词**整段复制**给任意 AI（ChatGPT / Claude / Gemini 等），并在末尾追加你目标站点的  
 **接口信息**（抓包或接口文档：搜索/章节/音频三个接口的 URL、方法、参数、请求头、签名加密算法、响应 JSON 示例），  
-AI 会直接产出 `manifest.json` + 源脚本两个文件，按 [三步上手](#三步上手) 打包导入即可。
+AI 会直接产出 `manifest.json` + 源脚本两个文件，按 [三步上手](#三步上手) 打包导入即可。  
+写好后建议先用下方「AI 一键验证」提示词实测一遍再导入。
 
 <details>
 <summary><b>点开复制完整提示词</b></summary>
@@ -78,18 +79,99 @@ AI 会直接产出 `manifest.json` + 源脚本两个文件，按 [三步上手](
 }
 
 【编写要求】
-1. 严格按我提供的接口信息实现：字段名、参数拼接顺序、加密签名算法、时间戳单位（秒/毫秒）
-   都不要改动；接口信息没写到的细节做合理实现，并在注释里标注你的假设。
+1. 严格按我提供的接口信息实现：参数拼接顺序、加密签名算法、时间戳单位（秒/毫秒）
+   都不要改动。响应字段名必须以我粘贴的真实响应 JSON 为准：哪类接口缺响应示例，
+   先向我要；我确实给不出时，才允许按常见命名做宽兜底，并在注释里标注这是假设。
 2. 每个阶段先检查 resp.status，非 2xx 抛出带状态码的中文错误；解析前用
    log(resp.body.slice(0, 200)) 输出响应片段便于排障。
 3. Web 类站点带浏览器 User-Agent；需要 Referer / Cookie 的按接口信息带上；站点有 Cookie
    风控时，先请求一次首页收割 Set-Cookie 再调接口。
-4. 只输出两个文件的完整代码（用注释或文件名标注哪个是哪个），不要输出解释性文字。
+4. 输出代码前，先列出三个阶段各自依赖的响应字段路径清单（例如
+   search ← data.bookData[] 的 id/bookTitle；audio ← 根层 src），便于我人工核对。
+5. 只输出两个文件的完整代码（用注释或文件名标注哪个是哪个），不要输出解释性文字。
 
 ========== 接口信息（抓包/文档资料粘贴在下面）==========
 
 （在这里粘贴：站点首页地址、搜索/章节/音频接口的完整 URL、请求方法与参数、
-请求头、签名或加密算法说明、响应 JSON 示例）
+请求头、签名或加密算法说明；每个接口再附一条抓包到的完整响应 JSON（Response 原文）。
+响应示例是字段解析的唯一依据——只给接口不给返回值，AI 只能按常见命名猜，多半会对不上。
+确实给不出响应时，写完务必用「验证提示词」实测一遍。）
+```
+
+</details>
+
+## 🧪 AI 一键验证接口源
+
+写好的源**导入前先实测一遍**——尤其当你当初只给了接口、没给响应 JSON 时，AI 写出的解析  
+多半对不上真实字段（表现为搜索 0 条、章节空、播放报错）。把下面的提示词复制给**能执行代码的 AI**  
+（Claude Code / ZCode / 带 Code Interpreter 的 ChatGPT 等；纯聊天 AI 只能做静态检查，实测不了），  
+附上你的脚本全文和一个测试关键词，它会搭一个沙箱测试桩真调接口、跑完三阶段、定位字段错位并修复。  
+修完重新打包导入即可。
+
+<details>
+<summary><b>点开复制完整提示词</b></summary>
+
+```text
+你是 Timbre 播放器「接口源」的调试专家。我给你一个接口源脚本，请在真实接口上
+验证它能否跑通，找出问题并修复，最后输出修复后的完整脚本。
+前提：你必须能实际运行代码（编写并执行 Node 脚本）；如果没有执行环境，就只做
+第一步的静态检查，并明确告诉我"无法实测"。
+
+【我将提供】
+1. 源脚本全文（可能附带 manifest.json）
+2. 一个测试用的搜索关键词
+3. （可选）接口抓包/文档资料
+
+【第一步：静态契约检查】
+- manifest.sources[].id 必须与脚本里 registerSource({ id }) 完全一致
+- search / chapters / audio 三个 async 函数齐全；失败路径 throw new Error
+- 只使用沙箱提供的全局函数（即第二步测试桩要模拟的那些：http、log、urlEncode、
+  timestamp、md5Hex、aesEcb… 等；沙箱里没有 fetch、setTimeout、DOM）
+- 阶段入参：search={keyword,page,limit}；chapters={bookId,page,size,+search自定义字段}；
+  audio={bookId,chapterId,+chapters自定义字段}
+- 阶段出参：search→[{id:'字符串',bookTitle,...}]；chapters→[{chapter_id:'字符串',title,...}]；
+  audio→'http...' 字符串 或 {url} 或 {url,headers}
+先列出发现的全部契约问题，修掉再进入实测。
+
+【第二步：真实接口实测（Node 测试桩）】
+写一个临时 .mjs 测试桩（Node 18+，内建 fetch，无需装依赖），对齐 Timbre 沙箱行为：
+- globalThis.registerSource = (s) => { src = s }
+- globalThis.log = (...a) => console.log('[log]', a.join(' '))
+- globalThis.urlEncode/urlDecode = encodeURIComponent/decodeURIComponent
+- globalThis.timestamp/timestampMs = 秒/毫秒时间戳
+- globalThis.http = { get(url,opts), post(url,opts) }：用 fetch 发真实请求
+  （opts.headers 原样带上），返回 { status, headers, body }：headers 收集为
+  "键全小写、同名值用 ', ' 拼接"的普通对象，body 为响应原文文本；
+  若脚本用到 opts.params/json/body，按 Timbre 语义实现（params 拼 query 并 URL 编码；
+  json 序列化为请求体并设 Content-Type）
+- 脚本若还用到其他沙箱全局（md5Hex/sha256Hex/hmacSha256Hex/base64Encode/Decode/
+  hexToBytes/bytesToHex/utf8ToBytes/bytesToUtf8/aesEcb*/aesGcm*/chacha20*/sm4*/
+  randomBytes），用 node:crypto 等价实现为同名全局
+然后 import 加载脚本，按完整链路执行并打印每步结果：
+① search({keyword, page:1, limit:20}) → 命中数量 + 前 3 本的 id/bookTitle
+② 取第一本 → chapters({bookId, page:1, size:30}) → 章节数 + 前 3 章的 chapter_id/title
+③ 取第一章 → audio({bookId, chapterId}) → 直链
+④ 对直链发 HEAD（带脚本设置的 User-Agent）→ 确认 2xx 且 content-type 是音频
+任何一步抛错、结果为空或字段缺失，都算未通过。
+
+【第三步：定位与修复】
+- 最常见的病根是"响应字段名对不上"：把测试桩里 log 出来的真实响应 JSON 与脚本的
+  解析逻辑逐一对照，修改字段候选/兜底链去适配真实字段；保持宽兜底，不要删其他分支
+- 签名/加密对不上时，核对拼接顺序、时间戳单位（秒/毫秒）、JSON 是否紧凑格式
+- 只改与失败相关的逻辑；每处修改先用一句话说明原因再动手
+
+【最终输出】
+1. 结论：通过 / 未通过，附各阶段实测数据（命中 X 本、Y 章、直链 HTTP 状态）
+2. 问题清单：每条 = 现象 → 原因 → 改动
+3. 修复后的完整脚本（不要省略任何行）；若改了 manifest.json 也一并给出
+4. 提醒我：改完要重新打包再导入——python scripts/pack_jdr.py 源目录 输出.jdr，
+   或把目录"里面的文件"（不是目录本身）压成 zip 改后缀 .jdr
+
+========== 源脚本（和 manifest.json，如有）==========
+（粘贴在这里）
+
+========== 测试关键词 ==========
+（例如：三体）
 ```
 
 </details>
