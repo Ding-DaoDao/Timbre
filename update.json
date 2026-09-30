@@ -2,5 +2,5 @@
   "versionName": "3.5.337",
   "versionCode": 68,
   "releaseUrl": "https://github.com/cq10086123/Timbre/releases/latest",
-  "releaseNotes": "<!-- Release notes generated using configuration in .github/release.yml at 1a19e0ffe8fa5b9b557f0eb7abba42a2cec7deb6 -->\n\n\n\n**Full Changelog**: https://github.com/cq10086123/Timbre/compare/v3.5.336...v3.5.337"
+  "releaseNotes": "- 修复在线书的倍速、跳过空白、音量增益设置在退出后丢失的问题\n- 修复在线书无法添加和显示书签的问题\n- 更新弹窗现在会显示新版本的更新说明"
 }
