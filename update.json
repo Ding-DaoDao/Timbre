@@ -2,5 +2,5 @@
   "versionName": "3.6.1",
   "versionCode": 627,
   "releaseUrl": "https://github.com/cq10086123/Timbre/releases/latest",
-  "releaseNotes": "<!-- Release notes generated using configuration in .github/release.yml at 2121d9249d9ab7ae37a0d41e0c0c5b784054b9b7 -->\n\n\n\n**Full Changelog**: https://github.com/cq10086123/Timbre/compare/v3.5.7...v3.6.1"
+  "releaseNotes": "本次属于重大更新请及时更新新版本\n如果未使用第三方源可以无视本次更新\n这次更新主要兼容部分接口源问题\n部分接口源写导致只能搜索无法获取章节问题\n这次更新之后会对自己写接口的人更友好"
 }
