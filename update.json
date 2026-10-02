@@ -2,5 +2,5 @@
   "versionName": "3.5.652",
   "versionCode": 628,
   "releaseUrl": "https://github.com/cq10086123/Timbre/releases/latest",
-  "releaseNotes": "<!-- Release notes generated using configuration in .github/release.yml at c38a576a15f0c7280b2f4b6d7b0911acbadb7039 -->\n\n\n\n**Full Changelog**: https://github.com/cq10086123/Timbre/compare/v3.6.1...v3.5.652"
+  "releaseNotes": "修复接口源兼容性导致接口使用失败\n部分本身接口是正常，但是接口无法使用\nGitHub自带接口不受到影响，网友自制接口可能会受到影响"
 }
