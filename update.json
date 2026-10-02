@@ -1,6 +1,6 @@
 {
-  "versionName": "3.5.7",
-  "versionCode": 626,
+  "versionName": "3.6.1",
+  "versionCode": 627,
   "releaseUrl": "https://github.com/cq10086123/Timbre/releases/latest",
-  "releaseNotes": "<!-- Release notes generated using configuration in .github/release.yml at f2c23d37ec129c31ef650e5ee09ae82b8cbad42f -->\n\n\n\n**Full Changelog**: https://github.com/cq10086123/Timbre/compare/v3.5.625...v3.5.7"
+  "releaseNotes": "<!-- Release notes generated using configuration in .github/release.yml at 2121d9249d9ab7ae37a0d41e0c0c5b784054b9b7 -->\n\n\n\n**Full Changelog**: https://github.com/cq10086123/Timbre/compare/v3.5.7...v3.6.1"
 }
