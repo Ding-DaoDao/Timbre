@@ -1,6 +1,6 @@
 {
-  "versionName": "3.5.625",
-  "versionCode": 625,
+  "versionName": "3.5.7",
+  "versionCode": 626,
   "releaseUrl": "https://github.com/cq10086123/Timbre/releases/latest",
-  "releaseNotes": "修复在线书的倍速、跳过空白、音量增益设置在退出后丢失的问题\n修复在线书无法添加和显示书签的问题\n更新弹窗现在会显示新版本的更新说明"
+  "releaseNotes": "<!-- Release notes generated using configuration in .github/release.yml at f2c23d37ec129c31ef650e5ee09ae82b8cbad42f -->\n\n\n\n**Full Changelog**: https://github.com/cq10086123/Timbre/compare/v3.5.625...v3.5.7"
 }
