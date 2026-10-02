@@ -126,7 +126,7 @@ fun BookOverviewScreen(modifier: Modifier = Modifier) {
       onDeleteCheckBoxCheck = deleteBookViewModel::onDeleteCheckBoxCheck,
     )
   }
-  val update = bookOverviewViewModel.updateNotifier.update.collectAsState().value
+  val update = bookOverviewViewModel.updateNotifier.prompt.collectAsState().value
   if (update != null) {
     UpdateDialog(
       update = update,

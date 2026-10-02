@@ -37,10 +37,19 @@ class UpdateNotifier(
   private val _update = MutableStateFlow<UpdateAvailable?>(null)
 
   /**
-   * The available update, or null while none was found or the user dismissed
-   * it. The check runs in the background and never blocks the app start.
+   * The available update, or null while none was found. Unlike [prompt] this
+   * survives dismissing the popup: the version row keeps advertising the
+   * update until the app is actually updated.
    */
   val update: StateFlow<UpdateAvailable?> = _update
+
+  private val _prompt = MutableStateFlow<UpdateAvailable?>(null)
+
+  /**
+   * The update the automatic popup should show, or null while the popup is
+   * closed. Dismissing only clears this, never [update].
+   */
+  val prompt: StateFlow<UpdateAvailable?> = _prompt
 
   fun onAppStarted() {
     scope.launch {
@@ -67,25 +76,28 @@ class UpdateNotifier(
     if (!isNewer(current, latest.versionName)) {
       return
     }
+    val available = UpdateAvailable(latest.versionName, latest.releaseNotes)
+    _update.value = available
     if (latest.versionName == dismissedStore.data.first()) {
-      // the user saw this release and pressed cancel, so stay quiet until a
-      // newer one is published
+      // the user saw this release and pressed cancel, so the popup stays
+      // quiet until a newer one is published — but update (the version row)
+      // still reports the release as available
       return
     }
-    _update.value = UpdateAvailable(latest.versionName, latest.releaseNotes)
+    _prompt.value = available
   }
 
   /** Closes the prompt for the shown release without remembering it as dismissed. */
   fun onUpdatePageOpened() {
-    _update.value = null
+    _prompt.value = null
   }
 
   /** Closes the prompt and stays quiet for the shown release. */
   suspend fun dismiss() {
-    _update.value?.let { available ->
+    _prompt.value?.let { available ->
       dismissedStore.updateData { available.versionName }
     }
-    _update.value = null
+    _prompt.value = null
   }
 
   companion object {
