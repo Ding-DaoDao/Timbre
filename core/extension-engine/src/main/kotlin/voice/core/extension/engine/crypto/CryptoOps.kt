@@ -93,9 +93,12 @@ public object CryptoOps {
     return ByteArray(length).also(random::nextBytes)
   }
 
-  public fun urlEncode(text: String): String = URLEncoder.encode(text, Charsets.UTF_8).replace("+", "%20")
+  // The charset is passed by its name on purpose: the (String, Charset) overloads of
+  // URLEncoder/URLDecoder only exist from API 33 on, so calling them throws
+  // NoSuchMethodError on older devices (minSdk 28) and kills the app.
+  public fun urlEncode(text: String): String = URLEncoder.encode(text, Charsets.UTF_8.name()).replace("+", "%20")
 
-  public fun urlDecode(text: String): String = URLDecoder.decode(text, Charsets.UTF_8)
+  public fun urlDecode(text: String): String = URLDecoder.decode(text, Charsets.UTF_8.name())
 
   private inline fun digestHex(
     algorithm: String,
