@@ -24,12 +24,16 @@ class UpdateChecker {
     ignoreUnknownKeys = true
   }
 
-  // jsDelivr first: it is a CDN that is reachable from mainland China, where
-  // github often is not, and it serves the update.json this repository keeps
-  // on main. The GitHub api is the fallback for the case where the CDN still
-  // serves a stale file. Every endpoint is tried in order and a failure or a
-  // timeout of one is silently ignored.
+  // raw.githubusercontent.com first: it reflects main within a minute of a
+  // push. jsDelivr follows as fallback because it is reachable from mainland
+  // China where github often is not — but it caches branch URLs for up to 12h
+  // and its purge API is unreliable, so right after a release it serves stale
+  // notes and even a lower version, which the update prompt then offers as a
+  // "downgrade". The GitHub api is the last resort; it always answers with the
+  // freshly published release and its body. Every endpoint is tried in order
+  // and a failure or a timeout of one is silently ignored.
   private val endpoints = listOf(
+    "https://raw.githubusercontent.com/cq10086123/Timbre/main/update.json",
     "https://cdn.jsdelivr.net/gh/cq10086123/Timbre@main/update.json",
     "https://fastly.jsdelivr.net/gh/cq10086123/Timbre@main/update.json",
     "https://api.github.com/repos/cq10086123/Timbre/releases/latest",
