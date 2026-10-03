@@ -483,7 +483,9 @@ private fun OnlineChaptersDialog(
     confirmButton = {
       Row {
         TextButton(
-          enabled = !state.loading && !state.failed,
+          // a book whose chapter list came back empty is not playable: adding
+          // is blocked, but an already shelved book must stay removable
+          enabled = !state.loading && !state.failed && (shelfState == true || state.chapters.isNotEmpty()),
           onClick = { toggleShelf(state.chapters) },
         ) {
           Text(
