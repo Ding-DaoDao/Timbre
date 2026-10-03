@@ -31,3 +31,8 @@ testResults
 /.zcode
 # stray extension packages at repo root (canonical ones live in samples/)
 /*.jdr
+
+# accidental CI/API dumps: ignore root-level json, whitelist the real config
+/*.json
+!/update.json
+!/renovate.json
