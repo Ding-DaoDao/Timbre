@@ -26,3 +26,8 @@ releases
 reports
 testResults
 /plugins/.idea/workspace.xml
+
+# ZCode local session data
+/.zcode
+# stray extension packages at repo root (canonical ones live in samples/)
+/*.jdr
